@@ -65,9 +65,12 @@ Có thể sửa/hủy hoặc **Xóa buổi** chấm nhầm của mình. Xóa có
 - Bắt đầu từ **01/10/2026 (thứ Năm)**, không có ngày trước mốc này trong phần chọn điểm danh.
 - Chỉ chọn được đúng thứ có lịch học của lớp. Ví dụ, lớp học thứ Năm có các ngày 01, 08, 15, 22, 29 trong tháng 10/2026. Một lớp có hai ca cùng ngày vẫn có một ngày điểm danh học sinh.
 - Đổi tháng/năm sẽ tự tính theo lịch thực tế, gồm cả năm nhuận. Lớp chưa có lịch thì không có ngày để điểm danh.
-- Sửa lịch ở mục Lớp học sẽ tự tính lại chuỗi ngày cho tất cả tháng. Tab điểm danh đang mở được cập nhật khi nhận thông báo đổi lịch từ tab khác hoặc khi quay lại tab. API cũng kiểm tra lịch mới trước khi lưu, tránh ghi bằng ngày đã hết hiệu lực.
-- Dữ liệu điểm danh đã lưu không bị xóa hoặc chuyển sang ngày khác khi sửa lịch. Các ngày không còn thuộc lịch mới sẽ không xuất hiện trong bộ chọn.
-- Không cần cron, automation bên ngoài hay migration database cho thay đổi này.
+- Sửa lịch ở mục Lớp học có trường **Áp dụng lịch và phân công từ ngày**, mặc định hôm nay. Các ngày trước mốc này giữ lịch và đội hình cũ. Phiên bản áp dụng đến trước mốc kế tiếp; bổ sung một mốc quá khứ không ghi đè các phiên bản tương lai.
+- Bộ chọn điểm danh, chấm công và lịch theo ngày tra đúng phiên bản có hiệu lực. Điểm danh hiển thị giáo viên và trợ giảng theo lịch của từng suất trong ngày đang chọn.
+- Lịch cả tuần và hai ảnh xuất dùng tuần hiện tại, tra phân công riêng cho từng ngày (kể cả thay đổi giữa tuần).
+- Công và đội hình thực tế đã lưu vẫn là căn cứ tính lương. Lịch mới không tự đổi công, vai trò, trạng thái xác nhận hoặc tiền lương cũ. Công thiếu đội hình cần người sở hữu mở **Sửa công** để bổ sung số giáo viên/trợ giảng thực tế.
+- Trước khi triển khai, chạy `npm run db:migrate:schedule` để tạo bảng `class_schedule_history` (chạy lại được, không sửa dữ liệu cũ). `npm run db:migrate` cũng bao gồm bảng này.
+- Lớp chưa có lịch sử dùng lịch hiện có làm mốc ban đầu từ 01/10/2026 khi sửa lần đầu. Phân công đã bị ghi đè trước khi có tính năng này không thể tự khôi phục; nhập lại phân công cùng ngày hiệu lực đúng để bổ sung lịch sử.
 
 ## Xuất thời khóa biểu
 

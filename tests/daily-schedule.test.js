@@ -1,6 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildScheduleBlocks, scheduleBlocksOnDate, shiftScheduleDate } from '../src/redesign/schedule.js';
+import { buildScheduleBlocks, buildWeekScheduleBlocks, scheduleBlocksOnDate, shiftScheduleDate } from '../src/redesign/schedule.js';
+
+test('a weekly view resolves each day separately when staffing changes midweek', () => {
+  const schedule = 'Thứ 2 (15:15 - 17:15), Thứ 5 (15:15 - 17:15)';
+  const cls = { id: 1, name: 'KID 2', schedule_history: [
+    { effective_date: '2026-10-01', schedule, teacher: 'A, B', ta: '' },
+    { effective_date: '2026-10-14', schedule, teacher: 'A', ta: 'B' },
+  ] };
+  const blocks = buildWeekScheduleBlocks([cls], name => name, '2026-10-15');
+  assert.deepEqual(blocks.map(row => [row.dayIndex, row.teacher, row.ta]), [[1, 'A, B', ''], [4, 'A', 'B']]);
+});
 
 test('daily navigation crosses month, year, and leap-day boundaries without timezone shifts', () => {
   for (const [date, delta, expected] of [

@@ -7,6 +7,7 @@ import { classSlots, classPayload, validateScheduleRows } from './schedule';
 import { money, normalizePayroll, studentClasses } from './format';
 import { sessionPay, staffingCounts, validStaffing } from '../../shared/payroll';
 import { CenterContext } from './center-context';
+import { scheduleOnDate } from '../../shared/schedule-history';
 
 export function CenterProvider({ children }) {
   const auth = useAuth();
@@ -77,7 +78,7 @@ export function CenterProvider({ children }) {
       return [
         { key: 'teacher', label: 'Người chấm công', readOnly: true, full: true, help: 'Lấy từ tài khoản cá nhân. Mỗi giáo viên tự ghi công của mình.' },
         { key: 'classId', label: 'Lớp học', type: 'select', required: true, resetSlot: true, full: true, options: [{ value: '', label: 'Chọn lớp' }, ...classes.map(c => ({ value: c.id, label: c.name }))] },
-        { key: 'date', label: 'Ngày dạy theo lịch lớp', type: 'scheduled-date', schedule: selected?.schedule || '', savedDate: record && Number(values.classId) === record.classId ? record.date : '', required: true, resetSlot: true },
+        { key: 'date', label: 'Ngày dạy theo lịch lớp', type: 'scheduled-date', schedule: selected?.schedule || '', scheduleHistory: selected?.schedule_history, savedDate: record && Number(values.classId) === record.classId ? record.date : '', required: true, resetSlot: true },
         { key: 'slot', label: 'Suất theo lịch lớp', type: 'select', required: true, options: [{ value: '', label: slots.length ? 'Chọn suất' : 'Ngày này chưa có lịch lớp' }, ...slots.map(s => ({ value: s.key, label: s.label || `${s.start} - ${s.end}` }))] },
         { key: 'role', label: 'Vai trò trong buổi', type: 'select', options: [{ value: 'teacher', label: 'Dạy chính' }, { value: 'ta', label: 'Trợ giảng' }] },
         { key: 'teacher_count', label: 'Số giáo viên thực tế trong suất', type: 'select', displayValue: teacherCount, options: Array.from({ length: 20 }, (_, i) => ({ value: i + 1, label: `${i + 1} giáo viên` })) },
@@ -93,7 +94,7 @@ export function CenterProvider({ children }) {
       const defaults = staffingCounts(classSlots(cls(values.classId), values.date).find(s => s.key === values.slot)?.staff);
       if (!validStaffing(Number(values.teacher_count ?? Math.max(1, defaults.teacher_count)), Number(values.ta_count ?? Math.max(values.role === 'ta' ? 1 : 0, defaults.ta_count)), values.role)) return 'Đội hình thực tế chưa hợp lệ. Kiểm tra số giáo viên và trợ giảng.';
       const unchanged = record && values.date === record.date && values.slot === `${record.start}-${record.end}`;
-      if (!unchanged && (!isScheduledAttendanceDate(cls(values.classId)?.schedule, values.date) || !classSlots(cls(values.classId), values.date).some(s => s.key === values.slot))) return 'Hãy chọn buổi và suất có trong lịch lớp.';
+      if (!unchanged && (!isScheduledAttendanceDate(scheduleOnDate(cls(values.classId), values.date).schedule, values.date) || !classSlots(cls(values.classId), values.date).some(s => s.key === values.slot))) return 'Hãy chọn buổi và suất có trong lịch lớp.';
     },
     save: async values => {
       const slot = classSlots(cls(values.classId), values.date).find(s => s.key === values.slot);
@@ -121,12 +122,13 @@ export function CenterProvider({ children }) {
     await refreshCore(); notify('Đã lưu hồ sơ học sinh.');
   } });
   const staffOptions = value => [{ value: '', label: 'Chưa phân công' }, ...teachers.map(t => ({ value: t.name, label: `${t.name} (${t.role === 2 ? 'TG' : 'GV'})` })), ...(value && !teachers.some(t => t.name === value) ? [{ value, label: `${value} (phân công đã lưu)` }] : [])];
-  const classEditor = record => open({ title: record ? 'Sửa thông tin lớp' : 'Tạo lớp học', initial: { ...(record || { name: '', teacher: '', ta: '', room: '' }), capacity: record?.capacity || '', scheduleRows: record ? classSlots(record).map(s => ({ day: s.day, time: s.key, staff: s.staff })) : [{ day: 1, time: '15:15-17:15', staff: [] }] }, wide: true, scheduleEditor: true, staffOptions, fields: [
+  const classEditor = record => open({ title: record ? 'Sửa thông tin lớp' : 'Tạo lớp học', initial: { ...(scheduleOnDate(record, localDate()) || { name: '', teacher: '', ta: '', room: '' }), effective_date: localDate(), capacity: record?.capacity || '', scheduleRows: record ? classSlots(record).map(s => ({ day: s.day, time: s.key, staff: s.staff })) : [{ day: 1, time: '15:15-17:15', staff: [] }] }, wide: true, scheduleEditor: true, staffOptions, fields: [
     { key: 'name', label: 'Tên lớp', required: true, full: true, placeholder: 'Ví dụ: KID 1' },
+    { key: 'effective_date', label: 'Áp dụng lịch và phân công từ ngày', type: 'effective-date', required: true, full: true, help: 'Từ 01/10/2026 trở đi. Các ngày trước ngày này giữ lịch cũ. Có thể chọn ngày quá khứ để bổ sung phân công cũ; phiên bản có hiệu lực sau đó vẫn được giữ.' },
     { key: 'room', label: 'Phòng học' }, { key: 'capacity', label: 'Sĩ số tối đa', type: 'number', min: 1, help: 'Để trống nếu không đặt giới hạn.' },
   ], validate: values => validateScheduleRows(values.scheduleRows, { allowEmpty: true }), save: async values => {
     await requestSave(`/api/classes${record ? `/${record.id}` : ''}`, classPayload(values), record ? 'PUT' : 'POST');
-    await refreshCore(); notifyClassScheduleUpdated(record?.id); notify('Đã lưu lớp và lịch học. Danh sách buổi được cập nhật theo lịch mới.');
+    await refreshCore(); notifyClassScheduleUpdated(record?.id); notify(`Đã lưu lịch từ ${values.effective_date}. Các ngày trước đó giữ lịch cũ.`);
   } });
   const enrollEditor = classId => {
     const current = cls(classId);

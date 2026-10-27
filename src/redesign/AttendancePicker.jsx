@@ -1,18 +1,19 @@
 import { useEffect, useId, useMemo, useState } from 'react';
-import { attendanceDatesInMonth, preferredAttendanceDate, weekdayLabel, isCalendarDate, isScheduledAttendanceDate } from '../../shared/class-schedule.js';
+import { preferredAttendanceDate, weekdayLabel, isCalendarDate, isScheduledAttendanceDate } from '../../shared/class-schedule.js';
 import { localDate } from '../lib/api';
+import { classAttendanceDates, scheduleOnDate } from '../../shared/schedule-history.js';
 
-export default function AttendancePicker({ schedule, value, onChange, label = 'Buổi điểm danh', disabled = false, savedDate = '' }) {
+export default function AttendancePicker({ schedule, scheduleHistory, value, onChange, label = 'Buổi điểm danh', disabled = false, savedDate = '' }) {
   const today = localDate();
   const id = useId();
   const initial = value?.slice(0, 7) || today.slice(0, 7);
   const [month, setMonth] = useState(initial.slice(5));
   const [year, setYear] = useState(initial.slice(0, 4));
   const dates = useMemo(() => {
-    const rows = attendanceDatesInMonth(schedule, `${year}-${month}`);
+    const rows = classAttendanceDates({ schedule, schedule_history: scheduleHistory }, `${year}-${month}`);
     if (isCalendarDate(savedDate) && savedDate.slice(0,7) === `${year}-${month}` && !rows.includes(savedDate)) rows.push(savedDate);
     return rows.sort();
-  }, [schedule, year, month, savedDate]);
+  }, [schedule, scheduleHistory, year, month, savedDate]);
   useEffect(() => {
     if (dates.includes(value)) return;
     const next = preferredAttendanceDate(dates, today);
@@ -25,7 +26,7 @@ export default function AttendancePicker({ schedule, value, onChange, label = 'B
     <div className="scheduled-date-fields">
       <label htmlFor={`${id}-day`}>Ngày có học<select id={`${id}-day`} aria-label="Ngày có học" value={dates.includes(value) ? value : ''} disabled={!dates.length} onChange={e => onChange(e.target.value)}>
         {!dates.length && <option value="">Không có ngày học</option>}
-        {dates.map(date => <option key={date} value={date}>{date.slice(8)} · {weekdayLabel(date)}{date === savedDate && !isScheduledAttendanceDate(schedule,date) ? ' (đã ghi)' : ''}</option>)}
+        {dates.map(date => <option key={date} value={date}>{date.slice(8)} · {weekdayLabel(date)}{date === savedDate && !isScheduledAttendanceDate(scheduleOnDate({ schedule, schedule_history: scheduleHistory }, date).schedule,date) ? ' (đã ghi)' : ''}</option>)}
       </select></label>
       <label htmlFor={`${id}-month`}>Tháng<select id={`${id}-month`} aria-label="Tháng điểm danh" value={month} onChange={e => setMonth(e.target.value)}>
         {[...new Set([...Array.from({ length: 13 - firstMonth }, (_, i) => String(i + firstMonth).padStart(2,'0')), ...(savedDate.slice(0,4) === year ? [savedDate.slice(5,7)] : [])])].sort().map(m => <option key={m} value={m}>{m}</option>)}

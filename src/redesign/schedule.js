@@ -1,5 +1,6 @@
 import { isCalendarDate, scheduleSlots, WEEKDAYS } from '../../shared/class-schedule.js';
 import { slotPeople, staffNames } from '../../shared/class-staff.js';
+import { scheduleOnDate } from '../../shared/schedule-history.js';
 
 export const SCHEDULE_DAYS = [1, 2, 3, 4, 5, 6, 0];
 export const TIME_SLOTS = ['07:00-09:00', '09:00-11:00', '15:15-17:15', '17:15-19:15', '19:15-21:15'];
@@ -19,6 +20,7 @@ export function scheduleBlocksOnDate(blocks, date) {
 }
 
 export function classSlots(cls, date) {
+  cls = scheduleOnDate(cls, date || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date()));
   return scheduleSlots(cls?.schedule || '', date).map(slot => {
     const staff = slotPeople(cls?.slot_staff?.find(row => row.slot === slot.label) || cls);
     return {
@@ -62,13 +64,20 @@ export function validateScheduleRows(rows, { allowEmpty = false } = {}) {
 }
 
 export function classPayload(values) {
-  return { name: values.name.trim(), teacher: values.teacher || '', ta: values.ta || '', schedule: scheduleText(values.scheduleRows), slot_staff: values.scheduleRows.map(row => ({ slot: scheduleText([row]), ...(row.staff !== undefined ? { staff: row.staff } : { teacher: row.teacher ?? values.teacher ?? '', ta: row.ta ?? values.ta ?? '' }) })), room: values.room || '', capacity: values.capacity == null || values.capacity === '' ? null : Number(values.capacity) };
+  return { ...(values.effective_date ? { effective_date: values.effective_date } : {}), name: values.name.trim(), teacher: values.teacher || '', ta: values.ta || '', schedule: scheduleText(values.scheduleRows), slot_staff: values.scheduleRows.map(row => ({ slot: scheduleText([row]), ...(row.staff !== undefined ? { staff: row.staff } : { teacher: row.teacher ?? values.teacher ?? '', ta: row.ta ?? values.ta ?? '' }) })), room: values.room || '', capacity: values.capacity == null || values.capacity === '' ? null : Number(values.capacity) };
 }
 
-export function buildScheduleBlocks(classes, person) {
-  return classes.flatMap(cls => classSlots(cls).map(slot => ({
+export function buildScheduleBlocks(classes, person, date) {
+  return classes.flatMap(cls => classSlots(cls, date).map(slot => ({
     id: `${cls.id}-${slot.day}-${slot.key}`, classId: cls.id, className: cls.name,
-    staff: slot.staff, teacher: person(slot.teacher), ta: slot.ta ? person(slot.ta) : '', room: cls.room,
+    staff: slot.staff, teacher: person(slot.teacher), ta: slot.ta ? person(slot.ta) : '', room: scheduleOnDate(cls, date).room,
     day: WEEKDAYS[slot.day], dayIndex: slot.day, timeKey: slot.key,
   })));
+}
+
+export function buildWeekScheduleBlocks(classes, person, reference) {
+  if (!isCalendarDate(reference)) return [];
+  const weekday = new Date(`${reference}T12:00:00Z`).getUTCDay();
+  const monday = shiftScheduleDate(reference, -((weekday + 6) % 7));
+  return SCHEDULE_DAYS.flatMap((_, index) => buildScheduleBlocks(classes, person, shiftScheduleDate(monday, index)));
 }

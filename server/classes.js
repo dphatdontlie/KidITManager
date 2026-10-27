@@ -1,4 +1,6 @@
-import { scheduleSlots } from '../shared/class-schedule.js';
+import { ATTENDANCE_START_DATE, isCalendarDate, scheduleSlots } from '../shared/class-schedule.js';
+import { scheduleSnapshot } from '../shared/schedule-history.js';
+import { loadScheduleHistory } from './schedule-history.js';
 import { InputError } from './session-domain.js';
 
 export function validateSlotStaff(staff, schedule) {
@@ -39,7 +41,8 @@ export function registerClasses(app, pool) {
   };
   const withStaff = async rows => {
     const staff = await loadStaff(db);
-    return rows.map(row => ({ ...row, slot_staff: staff.filter(s => s.class_id === row.id).map(({ class_id: _classId, ...assignment }) => assignment) }));
+    const history = await loadScheduleHistory(db);
+    return rows.map(row => ({ ...row, schedule_history: history.filter(s => s.class_id === row.id), slot_staff: staff.filter(s => s.class_id === row.id).map(({ class_id: _classId, ...assignment }) => assignment) }));
   };
   app.get('/api/classes', async (req, res) => {
     const [rows] = await db.query('SELECT c.*, COUNT(cs.student_id) AS enrolledCount FROM classes c LEFT JOIN class_students cs ON c.id=cs.class_id GROUP BY c.id');
@@ -73,12 +76,31 @@ export function registerClasses(app, pool) {
         const saved = await loadStaff(connection, req.params.id);
         staff = saved.filter(s => scheduleSlots(value.schedule).some(slot => slot.label === s.slot));
       } else staff = [];
+      const effectiveDate = req.body.effective_date === undefined ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date()) : req.body.effective_date;
+      if (!isCalendarDate(effectiveDate) || effectiveDate < ATTENDANCE_START_DATE) throw new InputError('Ngày hiệu lực phải từ 01/10/2026 trở đi.');
+      const oldStaff = req.params.id ? await loadStaff(connection, req.params.id) : [];
+      const cleanStaff = rows => rows.map(row => ({ slot: row.slot, teacher: row.teacher, ta: row.ta, ...(row.staff ? { staff: row.staff } : {}) })).sort((a, b) => a.slot.localeCompare(b.slot));
+      const before = scheduleSnapshot(current, cleanStaff(oldStaff));
+      const after = scheduleSnapshot(value, cleanStaff(staff));
+      const history = req.params.id ? await loadScheduleHistory(connection, req.params.id) : [];
+      const scheduleChanged = !req.params.id || JSON.stringify(before) !== JSON.stringify(after) || req.body.effective_date !== undefined;
+      if (req.params.id && scheduleChanged && !history.length) {
+        await connection.query('INSERT INTO class_schedule_history (class_id,effective_date,payload) VALUES (?,?,?)', [req.params.id, ATTENDANCE_START_DATE, JSON.stringify(before)]);
+      }
+      if (scheduleChanged && req.params.id) {
+        const latest = history.filter(row => row.effective_date > effectiveDate).at(-1);
+        if (latest) { Object.assign(value, latest); staff = latest.slot_staff; }
+      }
       const params = [value.name.trim(), value.teacher, value.ta, value.schedule, value.room, capacity];
       let id = req.params.id;
       if (id) await connection.query('UPDATE classes SET name=?,teacher=?,ta=?,schedule=?,room=?,capacity=? WHERE id=?', [...params, id]);
       else {
         const [result] = await connection.query('INSERT INTO classes (name,teacher,ta,schedule,room,capacity) VALUES (?,?,?,?,?,?)', params);
         id = result.insertId;
+      }
+      if (scheduleChanged) {
+        await connection.query('DELETE FROM class_schedule_history WHERE class_id=? AND effective_date=?', [id, effectiveDate]);
+        await connection.query('INSERT INTO class_schedule_history (class_id,effective_date,payload) VALUES (?,?,?)', [id, effectiveDate, JSON.stringify(after)]);
       }
       await connection.query('DELETE FROM class_slot_staff WHERE class_id=?', [id]);
       await connection.query('DELETE FROM class_slot_people WHERE class_id=?', [id]);

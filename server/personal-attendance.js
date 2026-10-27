@@ -1,6 +1,7 @@
 import { InputError, validateSession } from './session-domain.js';
 import { scheduleSlots } from '../shared/class-schedule.js';
 import { validStaffing, withSessionPay } from '../shared/payroll.js';
+import { classOnDate } from './schedule-history.js';
 
 export function registerPersonalAttendance(app, pool) {
   const db = pool.promise();
@@ -34,7 +35,8 @@ export function registerPersonalAttendance(app, pool) {
         if (existing.version !== input.version) throw new InputError('Dữ liệu vừa thay đổi. Hãy tải lại trước khi lưu.', 409);
       }
       const unchangedSlot = existing && existing.date === input.date && existing.slot === slot && existing.start_time === input.start_time && existing.end_time === input.end_time;
-      if (!unchangedSlot && !scheduleSlots(cls.schedule, input.date).some(s => s.label === slot && s.start_time === input.start_time && s.end_time === input.end_time)) throw new InputError('Hãy chọn suất có trong lịch lớp đúng ngày dạy.');
+      const dated = await classOnDate(connection, cls, input.date);
+      if (!unchangedSlot && !scheduleSlots(dated.schedule, input.date).some(s => s.label === slot && s.start_time === input.start_time && s.end_time === input.end_time)) throw new InputError('Hãy chọn suất có trong lịch lớp đúng ngày dạy.');
       if (input.status !== 'cancelled') {
         const [conflicts] = await connection.query("SELECT id FROM personal_attendance WHERE teacher_id=? AND date=? AND status<>'cancelled' AND start_time<? AND end_time>? AND id<>?", [teacher.id, input.date, input.end_time, input.start_time, existing?.id || 0]);
         const [legacy] = await connection.query("SELECT s.id FROM session_staff a JOIN teaching_sessions s ON s.id=a.session_id WHERE a.teacher_id=? AND s.date=? AND s.status<>'cancelled' AND s.start_time<? AND s.end_time>?", [teacher.id, input.date, input.end_time, input.start_time]);

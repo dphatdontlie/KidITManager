@@ -20,7 +20,7 @@ test('calendar starts on Thursday 01/10/2026 and follows the real month calendar
   assert.equal(preferredAttendanceDate(['2026-10-04', '2026-10-05', '2026-10-11', '2026-10-12', '2026-10-18'], '2026-10-15'), '2026-10-12');
 });
 
-test('API only accepts scheduled days and recalculates the entire sequence after a schedule edit', async t => {
+test('API validates each attendance day against the schedule effective on that day', async t => {
   const { app, sqlite } = createFixture();
   const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
   t.after(async () => { await new Promise(resolve => server.close(resolve)); sqlite.close(); });
@@ -41,19 +41,21 @@ test('API only accepts scheduled days and recalculates the entire sequence after
   assert.deepEqual((await request('/api/classes/1/attendance?date=2026-10-01')).data, [{ student_id: 1, status: 'absent' }]);
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM attendance').get().n, 1);
 
-  const changed = await request('/api/classes/1', { schedule: 'Thứ 2 (17:15 - 19:15), Chủ nhật (07:00 - 09:00)' }, 'PUT');
+  const changed = await request('/api/classes/1', { effective_date: '2026-10-12', schedule: 'Thứ 2 (17:15 - 19:15), Chủ nhật (07:00 - 09:00)' }, 'PUT');
   assert.equal(changed.status, 200);
   const dates = (await request('/api/classes/1/attendance-dates?month=2026-10')).data.dates;
-  assert.deepEqual(dates.map(d => Number(d.slice(8))), [4, 5, 11, 12, 18, 19, 25, 26]);
-  assert.equal((await mark('2026-10-01')).status, 409);
+  assert.deepEqual(dates.map(d => Number(d.slice(8))), [1, 8, 12, 18, 19, 25, 26]);
+  assert.equal((await mark('2026-10-01', 1, 'absent')).status, 200);
   assert.equal(sqlite.prepare("SELECT status FROM attendance WHERE date='2026-10-01'").get().status, 'absent');
-  assert.deepEqual((await request('/api/classes/1/attendance?date=2026-10-04')).data, []);
-  assert.equal((await mark('2026-10-04')).status, 200);
+  assert.deepEqual((await request('/api/classes/1/attendance?date=2026-10-12')).data, []);
+  assert.equal((await mark('2026-10-12')).status, 200);
+  assert.equal((await mark('2026-10-15')).status, 409);
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM attendance').get().n, 2);
   assert.equal((await request('/api/classes/1/attendance-dates?month=2026-13')).status, 400);
   assert.equal((await request('/api/classes/99/attendance-dates?month=2026-10')).status, 404);
 
-  await request('/api/classes/1', { schedule: '' }, 'PUT');
-  assert.deepEqual((await request('/api/classes/1/attendance-dates?month=2026-10')).data.dates, []);
-  assert.equal((await mark('2026-10-04')).status, 409);
+  await request('/api/classes/1', { effective_date: '2026-10-20', schedule: '' }, 'PUT');
+  assert.deepEqual((await request('/api/classes/1/attendance-dates?month=2026-10')).data.dates.map(d=>Number(d.slice(8))), [1, 8, 12, 18, 19]);
+  assert.equal((await mark('2026-10-26')).status, 409);
+  assert.equal((await mark('2026-10-12')).status, 200);
 });

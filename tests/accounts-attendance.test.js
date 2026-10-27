@@ -18,6 +18,22 @@ async function serve(t) {
 }
 const entry = (patch = {}) => ({ date: '2026-10-01', start_time: '15:15', end_time: '17:15', slot: 'Thứ 5 (15:15 - 17:15)', lesson: 'Lập trình vòng lặp', role: 'teacher', teacher_count: 1, ta_count: 1, status: 'completed', notes: '', version: 0, ...patch });
 
+test('dated staffing changes preserve past payroll and allow a late claim against the old schedule', async t => {
+  const { request, login } = await serve(t);
+  const cookie = await login('gv1');
+  assert.equal((await request('/classes/1/personal-attendance', entry({ teacher_count: 2, ta_count: 0 }), cookie)).status, 200);
+  const change = { effective_date: '2026-10-12', schedule: 'Thứ 2 (17:15 - 19:15)', slot_staff: [{ slot: 'Thứ 2 (17:15 - 19:15)', staff: [{ name: 'GV kiểm thử A', role: 'teacher' }, { name: 'GV kiểm thử B', role: 'ta' }] }] };
+  assert.equal((await request('/classes/1', change, cookie, 'PUT')).status, 200);
+  assert.equal((await request('/classes/1/personal-attendance', entry({ date: '2026-10-08', teacher_count: 2, ta_count: 0 }), cookie)).status, 200);
+  assert.equal((await request('/classes/1/personal-attendance', entry({ date: '2026-10-15' }), cookie)).status, 400);
+  const later = entry({ date: '2026-10-12', start_time: '17:15', end_time: '19:15', slot: 'Thứ 2 (17:15 - 19:15)' });
+  assert.equal((await request('/classes/1/personal-attendance', later, cookie)).status, 200);
+  const report = (await request('/payroll?month=2026-10', undefined, cookie)).data;
+  assert.deepEqual(report.entries.map(row => [row.date, row.teacher_count, row.ta_count, row.pay_amount]), [
+    ['2026-10-01', 2, 0, 187500], ['2026-10-08', 2, 0, 187500], ['2026-10-12', 1, 1, 125000],
+  ]);
+});
+
 test('API calculates all staffing arrangements and ignores client-supplied money', async t => {
   const { request, login } = await serve(t);
   const cookie = await login('gv1');
