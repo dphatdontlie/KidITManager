@@ -103,6 +103,8 @@ Chế độ **Hành trình thử thách**: câu thường 100 điểm; mỗi câ
 
 ## Ghi chú lớp học và bàn điều hành
 
+Trong trang **Chấm công**, admin có tab **Tổng thanh toán**: tổng hợp toàn bộ lớp theo tháng, từng giáo viên/trợ giảng có số suất đã xác nhận, lương theo suất, thưởng và tổng nhận. Bấm **+ Thưởng** để nhập tổng thưởng của người đó trong tháng, kèm ghi chú tùy chọn; nhập 0 để điều chỉnh về không thưởng. Khoản thưởng lưu riêng từng tháng, có kiểm tra phiên bản và ghi người cập nhật; giáo viên không được đọc/sửa API thưởng. Suất nháp/hủy không cộng lương; suất thiếu đội hình hiển thị tổng nhận tạm tính. Có xuất CSV theo nhân sự đang lọc. Trước triển khai, chạy `npm run db:migrate:bonuses` (migration `009-payroll-bonuses.sql`, không thay đổi lương/công có sẵn).
+
 - Trước khi triển khai bản này, chạy `npm run db:migrate:notes` để tạo `class_notes` và `attendance_actions`. Lệnh chạy lại được và không thay đổi công/lương có sẵn. Migration đầy đủ cũng bao gồm hai bảng.
 - Mỗi lớp có tab **Ghi chú buổi học**, lưu văn bản tối đa 10.000 ký tự theo ngày, loại (giảng dạy/chi tiêu/khác), người viết và trạng thái theo dõi. Chi tiêu có số tiền tùy chọn, không tự khấu trừ vào lương hoặc học phí.
 - Giáo viên xem ghi chú trong từng lớp, sửa ghi chú của mình; admin xem tổng hợp và sửa mọi ghi chú. Khi hai người cùng sửa, phiên bản cũ bị chặn để tránh ghi đè.

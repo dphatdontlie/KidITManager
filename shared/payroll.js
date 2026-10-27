@@ -28,6 +28,17 @@ export function summarizePay(rows) {
   }), { amount: 0, missing: 0 });
 }
 
+export function summarizeTeacherPayments(teachers, work, bonuses) {
+  const people = new Map(teachers.map(teacher => [teacher.id, { id: teacher.id, name: teacher.name }]));
+  for (const row of work) if (!people.has(row.teacherId)) people.set(row.teacherId, { id: row.teacherId, name: row.teacherName });
+  return [...people.values()].map(person => {
+    const sessions = work.filter(row => row.teacherId === person.id && row.status === 'completed');
+    const salary = summarizePay(sessions);
+    const bonus = bonuses.find(row => row.teacher_id === person.id);
+    return { ...person, count: sessions.length, salary: salary.amount, missing: salary.missing, bonus: bonus?.amount || 0, total: salary.amount + (bonus?.amount || 0), savedBonus: bonus };
+  }).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+}
+
 export function summarizeSessionWork(rows) {
   const summary = new Map();
   const counted = new Set();

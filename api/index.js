@@ -11,6 +11,7 @@ import { databaseConfig } from '../server/database-config.js';
 import { registerAccounts, createTeacherAccount } from '../server/accounts.js';
 import { registerPersonalAttendance } from '../server/personal-attendance.js';
 import { registerClassNotes } from '../server/class-notes.js';
+import { registerPayrollBonuses } from '../server/payroll-bonuses.js';
 import { createQuizService } from '../server/quiz.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -180,6 +181,7 @@ registerAccounts(app, pool);
 quiz.registerHost(app);
 registerPersonalAttendance(app, pool);
 registerClassNotes(app, pool);
+registerPayrollBonuses(app, pool);
 registerTeachingSessions(app, pool);
 
 app.use('/api', (req, res, next) => {
