@@ -10,6 +10,7 @@
     "db:migrate:quiz": "node scripts/migrate-quiz.js",
     "db:migrate:payroll": "node scripts/migrate-payroll.js",
     "db:migrate:schedule": "node scripts/migrate-schedule-history.js",
+    "db:migrate:notes": "node scripts/migrate-class-notes.js",
     "test": "node --test tests/*.test.js",
     "build": "vite build",
     "lint": "oxlint",

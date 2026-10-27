@@ -1,12 +1,14 @@
 import { randomBytes, randomUUID, randomInt, createHash } from 'node:crypto';
 import { InputError } from './session-domain.js';
+import { roundChallenge } from '../shared/quiz.js';
 
 export const tokenDigest = token => createHash('sha256').update(token).digest('hex');
 export const newQuizToken = () => randomBytes(32).toString('hex');
 const check = (condition, message, status = 400) => { if (!condition) throw new InputError(message, status); };
 
 export function createRoom(body, now) {
-  const { title, teamCount, seconds, questions } = body || {};
+  const { title, teamCount, seconds, questions, mode = 'classic' } = body || {};
+  check(['classic', 'adventure'].includes(mode), 'Chế độ trận đấu không hợp lệ.');
   check(typeof title === 'string' && title.trim().length > 0 && title.length <= 100, 'Tên trận cần từ 1 đến 100 ký tự.');
   check(Number.isInteger(teamCount) && teamCount >= 2 && teamCount <= 6, 'Chọn từ 2 đến 6 đội.');
   check(Number.isInteger(seconds) && seconds >= 10 && seconds <= 120, 'Thời gian mỗi câu từ 10 đến 120 giây.');
@@ -18,7 +20,7 @@ export function createRoom(body, now) {
     return { text: q.text.trim(), options: q.options.map(o => o.trim()), correct: q.correct };
   });
   return {
-    title: title.trim(), seconds, questions: normalized, phase: 'lobby', index: -1, deadline: null,
+    title: title.trim(), seconds, mode, questions: normalized, phase: 'lobby', index: -1, deadline: null,
     teams: Array.from({ length: teamCount }, (_, id) => ({ id, name: `Đội ${id + 1}`, charges: 0, shield: false, effect: null, protectedUntil: 0 })),
     players: [], results: [], events: [], createdAt: now,
   };
@@ -59,7 +61,7 @@ export function hostAction(room, body, now) {
     check(room.phase === 'lobby' || room.phase === 'reveal', 'Hãy kết thúc câu hiện tại trước.', 409);
     check(room.teams.every(t => room.players.some(p => p.teamId === t.id)), 'Mỗi đội cần ít nhất một học sinh.');
     if (room.index + 1 >= room.questions.length) { room.phase = 'finished'; return; }
-    room.index++; room.phase = 'question'; room.deadline = now + room.seconds * 1000;
+    room.index++; room.phase = 'question'; room.deadline = now + roundChallenge(room.mode, room.index, room.questions.length, room.seconds).seconds * 1000;
     for (const team of room.teams) { team.effect = null; team.shield = false; team.protectedUntil = 0; }
   } else if (action === 'reveal') {
     check(room.phase === 'question', 'Không có câu hỏi đang diễn ra.', 409);
@@ -89,7 +91,12 @@ export function answerQuestion(room, player, body, now) {
   check(!player.answers[room.index], 'Bạn đã trả lời câu này.', 409);
   const team = room.teams.find(t => t.id === player.teamId);
   check(!(team.effect?.kind === 'freeze' && team.effect.until > now), 'Đội đang bị đóng băng. Chờ hết hiệu ứng.', 409);
-  player.answers[room.index] = { choice: body.choice, correct: body.choice === room.questions[room.index].correct };
+  const correct = body.choice === room.questions[room.index].correct;
+  let streak = 0;
+  for (let i = room.index - 1; i >= 0 && player.answers[i]?.correct; i--) streak++;
+  const bonus = correct && room.mode === 'adventure' && (streak + 1) % 3 === 0 ? 50 : 0;
+  const challenge = roundChallenge(room.mode, room.index, room.questions.length, room.seconds);
+  player.answers[room.index] = { choice: body.choice, correct, points: correct ? challenge.points + bonus : 0, bonus, streak: correct ? streak + 1 : 0 };
   if (room.players.every(p => p.answers[room.index])) settleRoom(room, now, true);
 }
 
@@ -122,10 +129,12 @@ export function useSkill(room, player, body, now) {
 export function roomView(room, code, now, player = null, host = false) {
   const revealed = room.phase === 'reveal' || room.phase === 'finished';
   const question = room.questions[room.index];
-  const score = p => p.answers.filter((a, index) => a?.correct && (revealed || index < room.index)).length * 100;
+  const score = p => p.answers.reduce((sum, a, index) => sum + (a?.correct && (revealed || index < room.index) ? a.points ?? 100 : 0), 0);
+  const challenge = roundChallenge(room.mode, room.index, room.questions.length, room.seconds);
+  const streak = p => { let count = 0; for (let i = revealed ? room.index : room.index - 1; i >= 0 && p.answers[i]?.correct; i--) count++; return count; };
   return {
     code, title: room.title, phase: room.phase, index: room.index, questionCount: room.questions.length,
-    seconds: room.seconds, deadline: room.deadline, serverNow: now, me: player ? { id: player.id, name: player.name, teamId: player.teamId, answer: player.answers[room.index] ? { choice: player.answers[room.index].choice, ...(revealed ? { correct: player.answers[room.index].correct } : {}) } : null } : null,
+    mode: room.mode || 'classic', challenge, seconds: challenge.seconds, deadline: room.deadline, serverNow: now, me: player ? { id: player.id, name: player.name, teamId: player.teamId, score: score(player), streak: streak(player), answer: player.answers[room.index] ? { choice: player.answers[room.index].choice, ...(revealed ? { correct: player.answers[room.index].correct, points: player.answers[room.index].points ?? (player.answers[room.index].correct ? 100 : 0), bonus: player.answers[room.index].bonus || 0 } : {}) } : null } : null,
     question: question ? { text: question.text, options: question.options, ...(revealed ? { correct: question.correct } : {}) } : null,
     teams: room.teams.map(t => {
       const members = room.players.filter(p => p.teamId === t.id);

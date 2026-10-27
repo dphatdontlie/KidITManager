@@ -67,7 +67,7 @@ export function registerTeachingSessions(app, pool) {
       let personal = [];
       let entries = [];
       if (req.user) {
-        [entries] = await db.query('SELECT a.*,c.name AS class_name,p.teacher_count,p.ta_count FROM personal_attendance a JOIN classes c ON c.id=a.class_id LEFT JOIN attendance_payroll p ON p.attendance_id=a.id WHERE a.date>=? AND a.date<? ORDER BY a.date,a.start_time,a.teacher_name', [from, to]);
+        [entries] = await db.query('SELECT a.*,c.name AS class_name,p.teacher_count,p.ta_count,(SELECT actor_name FROM attendance_actions WHERE attendance_id=a.id ORDER BY id DESC LIMIT 1) AS recorded_by FROM personal_attendance a JOIN classes c ON c.id=a.class_id LEFT JOIN attendance_payroll p ON p.attendance_id=a.id WHERE a.date>=? AND a.date<? ORDER BY a.date,a.start_time,a.teacher_name', [from, to]);
         entries = entries.map(withSessionPay);
         personal = entries.filter(row => row.status === 'completed').map(row => ({ ...row, session_id: `personal-${row.id}`, work_units: 1 }));
       }

@@ -18,6 +18,10 @@ export function CenterProvider({ children }) {
   const [workData, setWorkData] = useState({ month: '', rows: [], legacy: [] });
   const [workError, setWorkError] = useState(''); const [workLoading, setWorkLoading] = useState(true);
   const [model, setModel] = useState(null); const [notice, setNotice] = useState('');
+  const resourceCache = useRef(new Map());
+  const viewState = useRef(new Map());
+  const [notesVersion, setNotesVersion] = useState(0);
+  const notesChanged = () => setNotesVersion(n => n + 1);
   const coreRequest = useRef(0); const financeRequest = useRef(0); const workRequest = useRef(0);
   const refreshCore = useCallback(async signal => {
     const request = ++coreRequest.current; setCoreError('');
@@ -43,11 +47,10 @@ export function CenterProvider({ children }) {
   useEffect(() => { const controller = new AbortController(); refreshCore(controller.signal); refreshFinance(controller.signal); return () => controller.abort(); }, [refreshCore, refreshFinance]);
   useEffect(() => { const controller = new AbortController(); refreshWork(controller.signal); return () => controller.abort(); }, [refreshWork]);
   useEffect(() => {
-    const refresh = () => { if (document.visibilityState === 'visible') { refreshCore(); refreshWork(); refreshFinance(); } };
     const storage = event => { if (event.key === CLASS_SCHEDULE_STORAGE_KEY) refreshCore(); };
-    window.addEventListener('focus', refresh); document.addEventListener('visibilitychange', refresh); window.addEventListener('storage', storage);
-    return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('storage', storage); };
-  }, [refreshCore, refreshWork, refreshFinance]);
+    window.addEventListener('storage', storage);
+    return () => window.removeEventListener('storage', storage);
+  }, [refreshCore]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 6000); return () => clearTimeout(timer); }, [notice]);
   const user = { ...auth.user, accountId: auth.user.id, id: auth.user.teacher_id ?? null };
   const role = auth.user.role;
@@ -62,11 +65,11 @@ export function CenterProvider({ children }) {
   const close = () => setModel(current => current === model ? null : current);
   const requestSave = async (url, body, method = 'POST') => api(url, jsonBody(body, method));
   const addWork = (classId = '', selectedDate = localDate(), record) => {
-    if (!user.id) { notify('Đăng nhập bằng tài khoản giáo viên để tự chấm công. Admin xem bảng tổng.'); return; }
+    if (!user.id && role !== 'admin') return;
     if (record?.source === 'historic') return;
-    open({ title: record ? 'Sửa công của tôi' : 'Chấm công của tôi', initial: {
-      teacher: user.name, classId, date: selectedDate, role: user.teacher_role === 2 ? 'ta' : 'teacher', status: 'completed', lesson: '', notes: '',
-      ...(record ? { ...record, teacher: user.name, role: record.rawRole, slot: `${record.start}-${record.end}` } : {}),
+    open({ title: record ? 'Sửa công giảng dạy' : role === 'admin' ? 'Chấm công cho giáo viên' : 'Chấm công của tôi', initial: {
+      teacher: user.name, teacher_id: record?.teacherId || user.id || '', classId, date: selectedDate, role: user.teacher_role === 2 ? 'ta' : 'teacher', status: 'completed', lesson: '', notes: '',
+      ...(record ? { ...record, teacher: record.teacherName, role: record.rawRole, slot: `${record.start}-${record.end}` } : {}),
     }, wide: true, submit: record ? 'Lưu thay đổi' : 'Xác nhận công',
     fields: values => {
       const selected = cls(values.classId); const slots = values.date ? classSlots(selected, values.date) : [];
@@ -76,14 +79,14 @@ export function CenterProvider({ children }) {
       const rate = sessionPay(values.role, teacherCount, taCount);
       if (record && Number(values.classId) === record.classId && values.date === record.date && !slots.some(s => s.key === values.slot)) slots.push({ key: `${record.start}-${record.end}`, label: record.slot, start: record.start, end: record.end });
       return [
-        { key: 'teacher', label: 'Người chấm công', readOnly: true, full: true, help: 'Lấy từ tài khoản cá nhân. Mỗi giáo viên tự ghi công của mình.' },
+        ...(role === 'admin' ? [{ key: 'teacher_id', label: 'Giáo viên / trợ giảng được chấm công', type: 'select', required: true, readOnly: Boolean(record), full: true, options: [{ value: '', label: 'Chọn nhân sự' }, ...teachers.filter(t => !record || t.id === record.teacherId).map(t => ({ value: t.id, label: t.name }))], help: 'Admin ghi hộ từng người. Kiểm tra vai trò và đội hình thực tế trước khi xác nhận.' }] : [{ key: 'teacher', label: 'Người chấm công', readOnly: true, full: true, help: 'Lấy từ tài khoản cá nhân của bạn.' }]),
         { key: 'classId', label: 'Lớp học', type: 'select', required: true, resetSlot: true, full: true, options: [{ value: '', label: 'Chọn lớp' }, ...classes.map(c => ({ value: c.id, label: c.name }))] },
         { key: 'date', label: 'Ngày dạy theo lịch lớp', type: 'scheduled-date', schedule: selected?.schedule || '', scheduleHistory: selected?.schedule_history, savedDate: record && Number(values.classId) === record.classId ? record.date : '', required: true, resetSlot: true },
         { key: 'slot', label: 'Suất theo lịch lớp', type: 'select', required: true, options: [{ value: '', label: slots.length ? 'Chọn suất' : 'Ngày này chưa có lịch lớp' }, ...slots.map(s => ({ value: s.key, label: s.label || `${s.start} - ${s.end}` }))] },
         { key: 'role', label: 'Vai trò trong buổi', type: 'select', options: [{ value: 'teacher', label: 'Dạy chính' }, { value: 'ta', label: 'Trợ giảng' }] },
         { key: 'teacher_count', label: 'Số giáo viên thực tế trong suất', type: 'select', displayValue: teacherCount, options: Array.from({ length: 20 }, (_, i) => ({ value: i + 1, label: `${i + 1} giáo viên` })) },
         { key: 'ta_count', label: 'Số trợ giảng thực tế trong suất', type: 'select', displayValue: taCount, options: Array.from({ length: 20 }, (_, i) => ({ value: i, label: `${i} trợ giảng` })), help: 'Gợi ý từ lịch lớp. Kiểm tra đội hình thực tế, kể cả người chưa tự chấm công.' },
-        { key: 'pay_preview', label: 'Lương của bạn / suất', type: 'display', full: true, text: values.status === 'cancelled' ? '0đ (buổi đã hủy)' : rate == null ? 'Đội hình chưa hợp lệ' : `${money(rate)}${values.status === 'draft' ? ' (dự kiến, chưa xác nhận)' : ''}`, help: rate == null ? 'Mỗi suất có ít nhất 1 giáo viên, tối đa 20 người.' : `Đơn giá của bạn: ${money(rate * 8)} / 8 buổi. Mỗi giáo viên: ${money(sessionPay('teacher', teacherCount, taCount))}; mỗi trợ giảng: ${money(500000 / 8)}. Tổng chi phí suất: ${money(teacherCount * sessionPay('teacher', teacherCount, taCount) + taCount * 62500)}.` },
+        { key: 'pay_preview', label: role === 'admin' ? 'Lương nhân sự được chọn / suất' : 'Lương của bạn / suất', type: 'display', full: true, text: values.status === 'cancelled' ? '0đ (buổi đã hủy)' : rate == null ? 'Đội hình chưa hợp lệ' : `${money(rate)}${values.status === 'draft' ? ' (dự kiến, chưa xác nhận)' : ''}`, help: rate == null ? 'Mỗi suất có ít nhất 1 giáo viên, tối đa 20 người.' : `Đơn giá: ${money(rate * 8)} / 8 buổi. Mỗi giáo viên: ${money(sessionPay('teacher', teacherCount, taCount))}; mỗi trợ giảng: ${money(500000 / 8)}. Tổng chi phí suất: ${money(teacherCount * sessionPay('teacher', teacherCount, taCount) + taCount * 62500)}.` },
         { key: 'lesson', label: 'Tên bài học', required: true, full: true, placeholder: 'Nhập bài đã dạy trong suất này' },
         { key: 'status', label: 'Trạng thái', type: 'select', full: true, options: [{ value: 'completed', label: 'Đã dạy, tính công' }, { value: 'draft', label: 'Chưa xác nhận' }, { value: 'cancelled', label: 'Đã hủy, không tính công' }] },
         { key: 'notes', label: 'Ghi chú (không bắt buộc)', type: 'textarea', full: true },
@@ -99,10 +102,10 @@ export function CenterProvider({ children }) {
     save: async values => {
       const slot = classSlots(cls(values.classId), values.date).find(s => s.key === values.slot);
       const defaults = staffingCounts(slot?.staff);
-      const payload = { date: values.date, start_time: slot?.start || record?.start, end_time: slot?.end || record?.end, slot: slot?.label || record?.slot, role: values.role, teacher_count: Number(values.teacher_count ?? Math.max(1, defaults.teacher_count)), ta_count: Number(values.ta_count ?? Math.max(values.role === 'ta' ? 1 : 0, defaults.ta_count)), lesson: values.lesson.trim(), notes: values.notes, status: values.status, version: record?.version || 0 };
+      const payload = { teacher_id: Number(values.teacher_id), date: values.date, start_time: slot?.start || record?.start, end_time: slot?.end || record?.end, slot: slot?.label || record?.slot, role: values.role, teacher_count: Number(values.teacher_count ?? Math.max(1, defaults.teacher_count)), ta_count: Number(values.ta_count ?? Math.max(values.role === 'ta' ? 1 : 0, defaults.ta_count)), lesson: values.lesson.trim(), notes: values.notes, status: values.status, version: record?.version || 0 };
       await requestSave(`/api/classes/${values.classId}/personal-attendance${record ? `/${record.entryId}` : ''}`, payload, record ? 'PUT' : 'POST');
       if (values.date.slice(0, 7) !== month) setMonth(values.date.slice(0, 7)); else await refreshWork();
-      notify('Đã lưu công của bạn. Người cùng ca tự chấm bằng tài khoản của họ.');
+      notify(role === 'admin' ? 'Đã lưu công cho nhân sự đã chọn.' : 'Đã lưu công của bạn.');
     } });
   };
   const deleteWork = record => open({ title: 'Xóa buổi chấm công?', content: <p>Xóa công của bạn tại {cls(record.classId)?.name || record.class_name}, ngày {record.date}, {record.start} - {record.end}, bài {record.lesson}. {record.pay_amount != null && `Số tiền ${money(record.pay_amount)} sẽ được bỏ khỏi bảng công.`} Không thể hoàn tác thao tác này.</p>, submit: 'Xóa buổi chấm công', save: async () => {
@@ -150,5 +153,5 @@ export function CenterProvider({ children }) {
       await refreshCore(); notify(record ? 'Đã lưu thông tin tài khoản.' : `Đã tạo tài khoản ${result.username}.`);
     },
   });
-  return <CenterContext.Provider value={{ ...core, ready, coreError, refreshCore, user, role, person, cls, roster, classesOf, work, month, setMonth, workLoading, workError, refreshWork, legacy: workData.month === month ? workData.legacy : [], invoices, financeLoading, financeError, refreshFinance, model, open, close, notice, notify, dismiss: () => setNotice(''), addWork, deleteWork, teacherEditor, studentEditor, classEditor, enrollEditor, removeStudent, deleteTeacher, accountEditor, auth }}>{children}</CenterContext.Provider>;
+  return <CenterContext.Provider value={{ ...core, ready, coreError, refreshCore, resourceCache, viewState, notesVersion, notesChanged, user, role, person, cls, roster, classesOf, work, month, setMonth, workLoading, workError, refreshWork, legacy: workData.month === month ? workData.legacy : [], invoices, financeLoading, financeError, refreshFinance, model, open, close, notice, notify, dismiss: () => setNotice(''), addWork, deleteWork, teacherEditor, studentEditor, classEditor, enrollEditor, removeStudent, deleteTeacher, accountEditor, auth }}>{children}</CenterContext.Provider>;
 }

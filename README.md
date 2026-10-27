@@ -55,7 +55,7 @@ Có thể sửa/hủy hoặc **Xóa buổi** chấm nhầm của mình. Xóa có
 
 - Thêm nhân sự ở mục Giáo viên tự tạo tài khoản trong cùng giao dịch. Mọi tài khoản giáo viên vẫn được quản lý lớp, giáo viên, học sinh, điểm danh học sinh, lịch học và các chức năng hiện có.
 - Admin có mục **Tài khoản**: tạo nhanh giáo viên mới kèm tài khoản, tạo tài khoản cho hồ sơ chưa liên kết, đổi tên đăng nhập và mật khẩu. Đổi họ tên hồ sơ không tự đổi tên đăng nhập.
-- Mật khẩu lưu bằng scrypt có salt; phiên đăng nhập dùng token ngẫu nhiên, cookie HttpOnly/SameSite, thời hạn 7 ngày. Đổi mật khẩu thu hồi các phiên của tài khoản đó. Admin chỉ xem công, không chấm hộ giáo viên.
+- Mật khẩu lưu bằng scrypt có salt; phiên đăng nhập dùng token ngẫu nhiên, cookie HttpOnly/SameSite, thời hạn 7 ngày. Đổi mật khẩu thu hồi các phiên của tài khoản đó. Admin có thể ghi/sửa công hộ bất kỳ giáo viên hoặc trợ giảng; giáo viên chỉ ghi/sửa công của mình.
 - Bảng tổng công và xuất CSV công khai cho mọi tài khoản đã đăng nhập, gồm bài học và suất. Người chưa đăng nhập không truy cập API dữ liệu.
 
 Điểm danh giáo viên kiểu cũ vẫn được giữ và hiển thị riêng trong bảng công để đối chiếu. Các dòng này chưa đủ giờ ca nên không tự cộng vào công mới. Điểm danh học sinh hiện vẫn theo ngày và độc lập với công giảng dạy.
@@ -96,6 +96,19 @@ Danh sách nhập và bảng điểm được lưu trên trình duyệt, không 
 Vào **Công cụ trên lớp → Đấu trường trắc nghiệm** để tạo phòng, soạn câu hỏi và chia đội. Học sinh mở `/play`, nhập mã phòng và tên trên máy riêng; không cần tài khoản giáo viên. Có đóng băng, cầu lửa, lá chắn và bảng điểm theo đội.
 
 Trước khi dùng trên hosting, chạy `npm run db:migrate:quiz` trên database của môi trường đó để thêm bảng phòng. Bản sửa này không tự chạy migration trong API. Hướng dẫn và giới hạn: [docs/QUIZ-ARENA.md](docs/QUIZ-ARENA.md).
+
+Giao diện KidIT Arena có sảnh chờ, phù hiệu đội, đường đua điểm số, bốn đáp án màu, phím tắt 1–4, phản hồi đáp án và bục kết quả. Giáo viên có thể mở toàn màn hình. Hiệu ứng theo sự kiện có hỗ trợ giảm chuyển động và dùng được trên điện thoại.
+
+Chế độ **Hành trình thử thách**: câu thường 100 điểm; mỗi câu thứ ba (trừ câu cuối) tối đa 15 giây và 150 điểm; câu cuối 200 điểm nếu bộ đề có ít nhất hai câu. Mỗi chuỗi ba câu đúng thưởng thêm 50 điểm. Máy chủ tính thời hạn, điểm và thưởng; chỉ công bố sau khi đóng câu. Chế độ **Cổ điển** và phòng cũ giữ luật 100 điểm/câu.
+
+## Ghi chú lớp học và bàn điều hành
+
+- Trước khi triển khai bản này, chạy `npm run db:migrate:notes` để tạo `class_notes` và `attendance_actions`. Lệnh chạy lại được và không thay đổi công/lương có sẵn. Migration đầy đủ cũng bao gồm hai bảng.
+- Mỗi lớp có tab **Ghi chú buổi học**, lưu văn bản tối đa 10.000 ký tự theo ngày, loại (giảng dạy/chi tiêu/khác), người viết và trạng thái theo dõi. Chi tiêu có số tiền tùy chọn, không tự khấu trừ vào lương hoặc học phí.
+- Giáo viên xem ghi chú trong từng lớp, sửa ghi chú của mình; admin xem tổng hợp và sửa mọi ghi chú. Khi hai người cùng sửa, phiên bản cũ bị chặn để tránh ghi đè.
+- Trang tổng quan admin hiển thị lương theo nhân sự, công nháp, công thiếu đội hình, chi phí đã ghi chú, lịch hôm nay và sổ ghi chú toàn trung tâm có bộ lọc tháng/lớp/loại/trạng thái/nội dung.
+- Admin vào **Chấm công cho giáo viên** trên dashboard, sổ công hoặc trang lớp, chọn nhân sự, suất, vai trò và đội hình thực tế. Kiểm tra trùng giờ, xác nhận sau giờ dạy và tính lương vẫn dùng cùng quy tắc. Thao tác tạo/sửa hộ được lưu nguyên tử vào lịch sử, và bảng công hiển thị người ghi hộ gần nhất.
+- Quay về tab trình duyệt không gọi lại dữ liệu quản lý. Lịch và bảng công giữ ngày xem, bộ lọc khi chuyển trang trong phiên đăng nhập. Dùng **Cập nhật lịch**, **Tải lại** hoặc **Cập nhật dữ liệu** để lấy thông tin từ máy khác. Sau khi lưu vẫn cập nhật ngay phần vừa sửa; phòng đấu vẫn đồng bộ trực tiếp để trận đấu không bị gián đoạn.
 
 ## Đưa bản sửa lên Vercel
 

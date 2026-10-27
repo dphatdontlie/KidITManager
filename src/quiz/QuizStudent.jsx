@@ -5,6 +5,8 @@ import { Leaderboard, Question, QuizError, RoomHeading, SkillLog } from './QuizS
 import { quizRequest, readQuizStorage, useQuizRoom, writeQuizStorage } from './useQuizRoom';
 import './quiz.css';
 import { QuizAudio } from './QuizAudio';
+import { ArenaIntro, MatchFinale, RaceBoard, TeamEmblem } from './Arena';
+import './arena.css';
 
 function SkillControls({ room, now, busy, stale, act }) {
   const [targetId, setTargetId] = useState('');
@@ -18,20 +20,30 @@ function SkillControls({ room, now, busy, stale, act }) {
 
 function PlayerRoom({ code, token, exit }) {
   const { room, error, busy, act, now, stale } = useQuizRoom(code, token);
+  const roundIndex = room?.index; const finished = room?.phase === 'finished';
+  useEffect(() => {
+    if (roundIndex == null || roundIndex < 0) return;
+    const target = document.querySelector(finished ? '.arena-finale' : '.quiz-play-surface');
+    target?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  }, [roundIndex, finished]);
   if (!room) return <div className="quiz-panel"><p role="status">Đang kết nối với phòng {code}...</p><QuizError>{error}</QuizError><button className="quiz-button quiz-secondary" onClick={exit}>Đổi phòng</button></div>;
   const team = room.teams.find(t => t.id === room.me.teamId);
   const effect = room.phase === 'question' && team.effect?.until > now ? team.effect : null;
   const frozen = effect?.kind === 'freeze';
   return <><RoomHeading room={room}><QuizAudio room={room} now={now} stale={stale} /></RoomHeading><div className="quiz-player-identity"><p><strong>{room.me.name}</strong> · {team.name}{team.captainId === room.me.id && ' · Đội trưởng'}</p><button className="quiz-link" onClick={exit}>Đổi phòng</button></div><QuizError>{error}</QuizError>{stale && <p role="status" className="quiz-notice">Đang kết nối lại. Chờ đồng bộ trước khi trả lời; nếu bạn vừa gửi đáp án, hệ thống sẽ kiểm tra kết quả đã nhận.</p>}
-    {room.phase === 'lobby' && <section className="quiz-waiting"><p>Bạn đã vào phòng</p><h1>Sẵn sàng cùng {team.name}!</h1><p>Giáo viên sẽ bắt đầu khi đủ người. Mỗi câu đúng mang về 100 điểm cho đội.</p><p>Đội có tỉ lệ đúng cao nhất nhận kỹ năng. Đội trưởng có thể dùng kỹ năng từ câu tiếp theo.</p></section>}
-    {room.phase === 'finished' && <section className="quiz-finale"><p>Đã hoàn thành trận đấu</p><h1>{team.score === Math.max(...room.teams.map(t => t.score)) ? 'Đội của bạn dẫn đầu!' : 'Cảm ơn bạn đã cùng đội thi đấu!'}</h1><p>{team.name} giành được {team.score} điểm.</p><Link className="quiz-button" to="/play">Tham gia phòng khác</Link></section>}
+    {room.phase === 'lobby' && <section className="quiz-waiting"><TeamEmblem teamId={team.id}/><div><p>Đã vào đội · Chờ giáo viên xuất phát</p><h1>{team.name}, sẵn sàng!</h1><p>{room.mode==='adventure'?'Vượt vòng tăng tốc, nối chuỗi đúng và bứt phá ở câu quyết định.':'Mỗi câu đúng mang về 100 điểm. Cùng đội trưởng chọn thời điểm dùng kỹ năng.'}</p></div></section>}
+    {room.phase === 'finished' && <><MatchFinale room={room} me={room.me}/><Link className="quiz-button" to="/play">Tham gia phòng khác</Link></>}
+    <div className={`arena-player-stage ${room.phase==='lobby'?'is-lobby':''}`}><div className="arena-player-main">
     {room.question && <div className={`quiz-play-surface ${frozen ? 'quiz-frozen' : ''}`}>
       <Question room={room} now={now} me={room.me} answer={choice => act('answer', { choice, index: room.index })} disabled={busy || stale || frozen} />
       {effect && <div className={`quiz-effect quiz-effect-${effect.kind}`} aria-hidden="true"><div className="quiz-effect-shape" /><div className="quiz-effect-shape" /><div className="quiz-effect-shape" /></div>}
       {effect && <p className="quiz-effect-message" role="status">{frozen ? 'Đội bị đóng băng, tạm khóa trả lời' : 'Cầu lửa đang che một phần đáp án'} · {Math.max(0, Math.ceil((effect.until - now) / 1000))}s</p>}
     </div>}
     {room.phase !== 'lobby' && room.phase !== 'finished' && <SkillControls room={room} now={now} busy={busy} stale={stale} act={act} />}
-    <Leaderboard room={room} lobby={room.phase === 'lobby'} me={room.me} /><SkillLog room={room} />
+    <SkillLog room={room}/></div><aside className="arena-player-sidebar">
+    {room.phase!=='lobby' && <div className="arena-player-hud"><span>Điểm của bạn<strong>{room.me.score || 0}</strong></span><span>Chuỗi đúng<strong>{room.me.streak || 0}<small> câu</small></strong></span><span>Lượt kỹ năng<strong>{team.charges}<small> / 3</small></strong></span></div>}
+    {room.phase!=='finished'&&<RaceBoard room={room}/>}
+    <Leaderboard room={room} lobby={room.phase === 'lobby'} me={room.me}/></aside></div>
   </>;
 }
 
@@ -47,7 +59,7 @@ export function QuizStudent() {
   const tokens = useRef({});
   useEffect(() => { setCode(routeCode); setToken(tokens.current[routeCode] || readQuizStorage(`kidit-quiz-player-${routeCode}`)); }, [routeCode]);
   useEffect(() => { const previous = document.title; document.title = 'Đấu trường trắc nghiệm | KidIT'; return () => { document.title = previous; }; }, []);
-  return <main className="quiz-app quiz-student"><header className="quiz-brand"><strong>KidIT</strong><span>Đấu trường trắc nghiệm</span></header>{storageNotice && <p className="quiz-notice" role="status">{storageNotice}</p>}
+  return <main className="quiz-app quiz-student"><header className="quiz-brand"><strong>KidIT <span>Arena</span></strong><span>Đấu trường kiến thức</span><Link className="quiz-link" to="/">Dành cho giáo viên</Link></header>{storageNotice && <p className="quiz-notice" role="status">{storageNotice}</p>}{!(token&&routeCode)&&<ArenaIntro join/>}
     {token && routeCode ? <PlayerRoom key={`${routeCode}-${token}`} code={routeCode} token={token} exit={() => { navigate('/play'); setToken(''); setError(''); }} /> : <section className="quiz-join"><div><p className="quiz-muted">Mỗi bạn một máy. Cả đội cùng thi đấu.</p><h1>Vào phòng đấu</h1><p>Nhập mã 6 số giáo viên cung cấp. Bạn sẽ được xếp vào đội khi tham gia.</p></div><form onSubmit={async e => {
       e.preventDefault(); setBusy(true); setError('');
       try {

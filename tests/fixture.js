@@ -5,6 +5,7 @@ import { registerTeachingSessions } from '../server/teaching-sessions.js';
 import { registerStudentAttendance } from '../server/student-attendance.js';
 import { registerAccounts, hashPassword } from '../server/accounts.js';
 import { registerPersonalAttendance } from '../server/personal-attendance.js';
+import { registerClassNotes } from '../server/class-notes.js';
 import { createTeacherAccount } from '../server/accounts.js';
 import { randomUUID } from 'node:crypto';
 import { createQuizService } from '../server/quiz.js';
@@ -31,6 +32,8 @@ export function createFixture({ auth = false, quizNow = Date.now } = {}) {
     CREATE TABLE personal_attendance (id INTEGER PRIMARY KEY AUTOINCREMENT,teacher_id INTEGER REFERENCES teachers(id),teacher_name TEXT,class_id INTEGER REFERENCES classes(id),date TEXT,start_time TEXT,end_time TEXT,slot TEXT,lesson TEXT,role TEXT,status TEXT,notes TEXT,version INTEGER DEFAULT 1,UNIQUE(teacher_id,class_id,date,start_time,end_time));
     CREATE TABLE invoices (id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_code TEXT UNIQUE,student_id INTEGER REFERENCES students(id),amount INTEGER,status TEXT,createdAt TEXT DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE attendance_payroll (attendance_id INTEGER PRIMARY KEY REFERENCES personal_attendance(id) ON DELETE CASCADE,teacher_count INTEGER NOT NULL,ta_count INTEGER NOT NULL);
+    CREATE TABLE attendance_actions (id INTEGER PRIMARY KEY AUTOINCREMENT,attendance_id INTEGER,actor_account_id INTEGER,actor_name TEXT,action TEXT,payload TEXT);
+    CREATE TABLE class_notes (id INTEGER PRIMARY KEY AUTOINCREMENT,class_id INTEGER REFERENCES classes(id),date TEXT,category TEXT,content TEXT,amount INTEGER,status TEXT,author_account_id INTEGER,author_name TEXT,updated_by TEXT,created_at TEXT,updated_at TEXT,version INTEGER DEFAULT 1);
     INSERT INTO classes VALUES (1,'Lớp kiểm thử','GV kiểm thử A','GV kiểm thử B','Thứ 5 (15:15 - 17:15)','1',10);
     INSERT INTO teachers VALUES (1,'GV kiểm thử A',1,''),(2,'GV kiểm thử B',2,''),(3,'GV dạy thay C',1,'');
     INSERT INTO students VALUES (1,'Học sinh kiểm thử','','','');
@@ -64,6 +67,7 @@ export function createFixture({ auth = false, quizNow = Date.now } = {}) {
     }
     registerAccounts(app, pool);
     registerPersonalAttendance(app, pool);
+    registerClassNotes(app, pool);
   }
   quiz.registerHost(app);
   registerClasses(app, pool);

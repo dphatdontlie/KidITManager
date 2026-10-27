@@ -9,6 +9,36 @@ const setup = (patch = {}) => ({ title: 'Trận kiểm thử', teamCount: 2, sec
   { text: '4 + 4 = ?', options: ['6', '7', '8', '9'], correct: 2 },
 ], ...patch });
 
+test('adventure challenges enforce deadlines, hidden rewards, combo scoring and final points on the server', () => {
+  const questions = Array.from({ length: 4 }, () => ({ text: 'Câu kiểm thử', options: ['A', 'B', 'C', 'D'], correct: 1 }));
+  const room = createRoom(setup({ mode: 'adventure', questions }), 0);
+  const a = joinRoom(room, 'An', 'a'), b = joinRoom(room, 'Bình', 'b');
+  let now = 1000;
+  for (let index = 0; index < 4; index++) {
+    hostAction(room, { action: 'next' }, now);
+    const before = roomView(room, '123456', now, a);
+    assert.equal(before.seconds, index === 2 ? 15 : 25);
+    assert.equal(room.deadline, now + before.seconds * 1000);
+    answerQuestion(room, a, { index, choice: 1, points: 99999, bonus: 99999 }, now + 100);
+    const hidden = roomView(room, '123456', now + 100, a);
+    assert.deepEqual(hidden.me.answer, { choice: 1 });
+    assert.equal(hidden.me.score, index === 0 ? 0 : index === 1 ? 100 : index === 2 ? 200 : 400);
+    answerQuestion(room, b, { index, choice: 0 }, now + 200);
+    const reveal = roomView(room, '123456', now + 200, a);
+    assert.equal(reveal.me.answer.points, [100, 100, 200, 200][index]);
+    assert.equal(reveal.me.streak, index + 1);
+    if (index === 2) assert.equal(reveal.me.answer.bonus, 50);
+    now += 30000;
+  }
+  assert.equal(roomView(room, '123456', now, a).me.score, 600);
+  const sprint = createRoom(setup({ mode: 'adventure', questions }), 0);
+  const p = joinRoom(sprint, 'A', 'a'); joinRoom(sprint, 'B', 'b');
+  sprint.phase = 'reveal'; sprint.index = 1;
+  hostAction(sprint, { action: 'next' }, 1000);
+  assert.throws(() => answerQuestion(sprint, p, { index: 2, choice: 1 }, 16000), /đã đóng/);
+  assert.throws(() => createRoom(setup({ mode: 'unknown' }), 0), /Chế độ/);
+});
+
 async function serve(t) {
   let time = 100000;
   const fixture = createFixture({ auth: true, quizNow: () => time });
