@@ -112,7 +112,16 @@ export function Teachers() {
 }
 
 function WorkRows({ rows }) {
-  const d=useCenter();return rows.length?<div className="work-list">{rows.map(w=><article className="work-row" key={w.id}>
+  const center = useCenter();
+  if (center.role === 'admin' && rows.length) return <div className="admin-work-grid">{rows.map(w => <article className="admin-work-card" key={w.id}>
+    <header><ClassTag cls={center.cls(w.classId)}/><Badge value={w.status}/></header>
+    <div className="admin-work-person"><strong>{w.teacherName || center.person(w.teacherId)}</strong><span>{w.role}{w.source === 'historic' ? ' · Công cũ' : ''}</span></div>
+    <p className="admin-work-time">{dateLabel(w.date)} · {w.start}–{w.end}</p>
+    <h3>{w.lesson}</h3>
+    <details><summary>Chi tiết{w.notes ? ' · Có ghi chú' : ''}</summary><div className="admin-work-details"><p>{w.lesson}</p>{w.pay_rate != null ? <p>{w.teacher_count} giáo viên + {w.ta_count} trợ giảng · {money(w.pay_rate * 8)} / 8 = {money(w.pay_rate)} / người / buổi</p> : <p>Cần bổ sung đội hình thực tế để tính lương.</p>}{w.recorded_by && <p>Admin ghi / sửa hộ: {w.recorded_by}</p>}{w.notes && <p className="preserve-lines">{w.notes}</p>}</div></details>
+    <footer><div><strong>{w.pay_amount == null ? 'Chưa đủ dữ liệu' : money(w.pay_amount)}</strong><small>{w.status === 'completed' ? '1 công / suất' : w.status === 'draft' ? 'Dự kiến, chưa tính công' : 'Không tính công'}</small></div>{w.source === 'personal' && <Button variant="ghost small" onClick={() => center.addWork(w.classId,w.date,w)}>Sửa công</Button>}</footer>
+  </article>)}</div>;
+  const d=center;return rows.length?<div className="work-list">{rows.map(w=><article className="work-row" key={w.id}>
     <div className="work-date"><strong>{w.date.slice(8)}</strong><span>{w.date.slice(5,7)}/{w.date.slice(0,4)}</span></div>
     <div className="work-info"><div><ClassTag cls={d.cls(w.classId)}/><span className="muted">{w.start} - {w.end}</span></div><h3>{w.lesson}</h3><p>{w.teacherName||d.person(w.teacherId)} · {w.role}{w.source==='historic'?' · Công cũ đã xác nhận':''}</p>
       {w.pay_rate!=null?<p>{w.teacher_count} giáo viên + {w.ta_count} trợ giảng · {money(w.pay_rate*8)} / 8 = {money(w.pay_rate)} / người / buổi</p>:<p>Cần bổ sung đội hình thực tế để tính lương.</p>}
