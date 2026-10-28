@@ -120,17 +120,22 @@ function WorkRows({ rows }) {
     <div className="admin-work-person"><strong>{w.teacherName || center.person(w.teacherId)}</strong><span>{w.role}{w.source === 'historic' ? ' · Công cũ' : ''}</span></div>
     <p className="admin-work-time">{dateLabel(w.date)} · {w.start}–{w.end}</p>
     <h3>{w.lesson}</h3>
-    <details><summary>Chi tiết{w.notes ? ' · Có ghi chú' : ''}</summary><div className="admin-work-details"><p>{w.lesson}</p>{w.pay_rate != null ? <p>{w.teacher_count} giáo viên + {w.ta_count} trợ giảng · {w.pay_basis === 'class' ? `Đơn giá lớp: ${money(w.pay_rate)} / người / suất` : `${money(w.pay_rate * 8)} / 8 = ${money(w.pay_rate)} / người / buổi`}</p> : <p>Cần bổ sung đội hình thực tế để tính lương.</p>}{w.recorded_by && <p>Admin ghi / sửa hộ: {w.recorded_by}</p>}{w.notes && <p className="preserve-lines">{w.notes}</p>}</div></details>
+    <PayRecordNote row={w}/>
+    <details><summary>Chi tiết{w.notes ? ' · Có ghi chú' : ''}</summary><div className="admin-work-details"><p>{w.lesson}</p>{w.pay_rate != null ? <p>{w.teacher_count} giáo viên + {w.ta_count} trợ giảng · {w.pay_basis !== 'staffing' ? `${w.pay_basis === 'override' ? 'Đơn giá riêng' : 'Đơn giá lớp'}: ${money(w.pay_rate)} / người / suất` : `${money(w.pay_rate * 8)} / 8 = ${money(w.pay_rate)} / người / buổi`}</p> : <p>Cần bổ sung đội hình thực tế để tính lương.</p>}{w.recorded_by && <p>Admin ghi / sửa hộ: {w.recorded_by}</p>}{w.notes && <p className="preserve-lines">{w.notes}</p>}</div></details>
     <footer><div><strong>{w.pay_amount == null ? 'Chưa đủ dữ liệu' : money(w.pay_amount)}</strong><small>{w.status === 'completed' ? '1 công / suất' : w.status === 'draft' ? 'Dự kiến, chưa tính công' : 'Không tính công'}</small></div>{w.source === 'personal' && <Button variant="ghost small" onClick={() => center.addWork(w.classId,w.date,w)}>Sửa công</Button>}</footer>
   </article>)}</div>;
   const d=center;return rows.length?<div className="work-list">{rows.map(w=><article className="work-row" key={w.id}>
     <div className="work-date"><strong>{w.date.slice(8)}</strong><span>{w.date.slice(5,7)}/{w.date.slice(0,4)}</span></div>
     <div className="work-info"><div><ClassTag cls={d.cls(w.classId)}/><span className="muted">{w.start} - {w.end}</span></div><h3>{w.lesson}</h3><p>{w.teacherName||d.person(w.teacherId)} · {w.role}{w.source==='historic'?' · Công cũ đã xác nhận':''}</p>
-      {w.pay_rate!=null?<p>{w.teacher_count} giáo viên + {w.ta_count} trợ giảng · {w.pay_basis === 'class' ? `Đơn giá lớp: ${money(w.pay_rate)} / người / suất` : `${money(w.pay_rate*8)} / 8 = ${money(w.pay_rate)} / người / buổi`}</p>:<p>Cần bổ sung đội hình thực tế để tính lương.</p>}
-      {w.recorded_by&&<p>Admin ghi / sửa hộ: {w.recorded_by}</p>}{w.notes&&<p className="preserve-lines">{w.notes}</p>}</div>
+      {w.pay_rate!=null?<p>{w.teacher_count} giáo viên + {w.ta_count} trợ giảng · {w.pay_basis !== 'staffing' ? `${w.pay_basis === 'override' ? 'Đơn giá riêng' : 'Đơn giá lớp'}: ${money(w.pay_rate)} / người / suất` : `${money(w.pay_rate*8)} / 8 = ${money(w.pay_rate)} / người / buổi`}</p>:<p>Cần bổ sung đội hình thực tế để tính lương.</p>}
+      <PayRecordNote row={w}/>{w.recorded_by&&<p>Admin ghi / sửa hộ: {w.recorded_by}</p>}{w.notes&&<p className="preserve-lines">{w.notes}</p>}</div>
     <div className="work-status"><Badge value={w.status}/><span>{w.status==='completed'?'1 công / suất':w.status==='draft'?'Dự kiến, chưa tính công':'Không tính công'}</span><strong className="work-pay">{w.pay_amount==null?'Chưa đủ dữ liệu':money(w.pay_amount)}</strong></div>
     {w.source==='personal'&&(w.teacherId===d.user.id||d.role==='admin')&&<div className="work-actions"><Button variant="ghost small" onClick={()=>d.addWork(w.classId,w.date,w)}>Sửa công</Button>{w.teacherId===d.user.id&&<Button variant="ghost small danger" onClick={()=>d.deleteWork(w)}>Xóa buổi</Button>}</div>}
   </article>)}</div>:<Empty title="Chưa có công theo bộ lọc này" text="Thử thay đổi tháng hoặc ghi công sau buổi dạy." action={d.user.id&&<Button onClick={()=>d.addWork()}>Ghi công của tôi</Button>}/>;
+}
+
+function PayRecordNote({ row }) {
+  return <>{row.staffing_warning && <p className="payment-missing" role="status">{row.staffing_warning}</p>}{row.pay_frozen && <p className="muted">Tiền đã chốt{row.pay_basis === 'override' ? ' · Đơn giá riêng' : ''}. Admin chọn tính lại nếu cần đổi tiền.</p>}{row.override_reason && <p>Lý do đơn giá riêng: {row.override_reason}</p>}{row.single_teacher && <p>Một người dạy thay đội hình hai giáo viên.</p>}</>;
 }
 
 function PayTotal({ rows, label }) {

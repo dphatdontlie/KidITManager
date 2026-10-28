@@ -37,6 +37,9 @@ export function createFixture({ auth = false, quizNow = Date.now } = {}) {
     CREATE TABLE attendance_actions (id INTEGER PRIMARY KEY AUTOINCREMENT,attendance_id INTEGER,actor_account_id INTEGER,actor_name TEXT,action TEXT,payload TEXT);
     CREATE TABLE payroll_bonuses (teacher_id INTEGER REFERENCES teachers(id),month TEXT,amount INTEGER,note TEXT,version INTEGER DEFAULT 1,updated_by TEXT,updated_at TEXT,PRIMARY KEY(teacher_id,month));
     CREATE TABLE class_pay_rates (class_id INTEGER PRIMARY KEY REFERENCES classes(id) ON DELETE CASCADE,session_amount INTEGER,teacher_amount INTEGER,ta_amount INTEGER,version INTEGER DEFAULT 1,updated_by TEXT,updated_at TEXT);
+    CREATE TABLE class_pay_rate_history (class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,effective_date TEXT,payload TEXT,PRIMARY KEY(class_id,effective_date));
+    CREATE TABLE attendance_pay_details (attendance_id INTEGER PRIMARY KEY REFERENCES personal_attendance(id) ON DELETE CASCADE,single_teacher INTEGER DEFAULT 0,override_amount REAL,override_reason TEXT DEFAULT '',snapshot TEXT);
+    CREATE TABLE historic_pay_snapshots (session_id INTEGER REFERENCES teaching_sessions(id) ON DELETE CASCADE,teacher_id INTEGER,snapshot TEXT,PRIMARY KEY(session_id,teacher_id));
     CREATE TABLE class_notes (id INTEGER PRIMARY KEY AUTOINCREMENT,class_id INTEGER REFERENCES classes(id),date TEXT,category TEXT,content TEXT,amount INTEGER,status TEXT,author_account_id INTEGER,author_name TEXT,updated_by TEXT,created_at TEXT,updated_at TEXT,version INTEGER DEFAULT 1);
     INSERT INTO classes VALUES (1,'Lớp kiểm thử','GV kiểm thử A','GV kiểm thử B','Thứ 5 (15:15 - 17:15)','1',10);
     INSERT INTO teachers VALUES (1,'GV kiểm thử A',1,''),(2,'GV kiểm thử B',2,''),(3,'GV dạy thay C',1,'');
@@ -94,5 +97,5 @@ export function createFixture({ auth = false, quizNow = Date.now } = {}) {
   registerTeachingSessions(app, pool);
   registerStudentAttendance(app, pool);
   app.use((error, req, res, _next) => res.status(error.status || 500).json({ error: error.message }));
-  return { app, sqlite, state };
+  return { app, sqlite, state, connection };
 }

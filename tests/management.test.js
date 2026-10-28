@@ -42,7 +42,7 @@ test('admins record and correct any teacher while conflicts, payroll and audit r
   assert.equal(sqlite.prepare('SELECT action FROM attendance_actions').get().action, 'create');
   assert.equal((await request('/classes/1/personal-attendance', work(), admin)).status, 409);
   const path = `/classes/1/personal-attendance/${saved.data.id}`;
-  assert.equal((await request(path, work({ version: 1, teacher_count: 1, ta_count: 1 }), admin, 'PUT')).status, 200);
+  assert.equal((await request(path, work({ version: 1, teacher_count: 1, ta_count: 1, recalculate: true }), admin, 'PUT')).status, 200);
   assert.equal(JSON.parse(sqlite.prepare('SELECT payload FROM attendance_actions ORDER BY id DESC LIMIT 1').get().payload).before.teacher_count, 2);
   assert.equal((await request(path, work({ version: 1 }), admin, 'PUT')).status, 409);
   const report = (await request('/payroll?month=2026-10', undefined, admin)).data;

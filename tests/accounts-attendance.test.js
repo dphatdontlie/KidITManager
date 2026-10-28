@@ -34,13 +34,13 @@ test('dated staffing changes preserve past payroll and allow a late claim agains
   ]);
 });
 
-test('API calculates all staffing arrangements and ignores client-supplied money', async t => {
+test('API preserves confirmed salary across staffing edits and ignores client-supplied money', async t => {
   const { request, login } = await serve(t);
   const cookie = await login('gv1');
   const saved = await request('/classes/1/personal-attendance', entry(), cookie);
   const path = `/classes/1/personal-attendance/${saved.data.id}`;
   let version = 1;
-  for (const [teacher_count, ta_count, expected] of [[1, 0, 187500], [2, 0, 187500], [1, 1, 125000], [2, 1, 187500]]) {
+  for (const [teacher_count, ta_count, expected] of [[1, 0, 125000], [2, 0, 125000], [1, 1, 125000], [2, 1, 125000]]) {
     assert.equal((await request(path, entry({ teacher_count, ta_count, pay_amount: 999999999, pay_rate: 999999999, version: version++ }), cookie, 'PUT')).status, 200);
     assert.equal((await request('/payroll?month=2026-10', null, cookie)).data.rows[0].pay_amount, expected);
   }

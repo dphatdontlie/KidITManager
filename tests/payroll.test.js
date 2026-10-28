@@ -18,11 +18,11 @@ test('invalid or missing staffing never silently contributes salary', () => {
   assert.equal(withSessionPay({ role: 'teacher', teacher_count: 1, ta_count: 1, status: 'draft' }).pay_amount, 125000);
 });
 
-test('configured class rates split the applicable teacher pool by actual teachers and transfer the assistant share when absent', () => {
-  const configured = { session_amount: 187500, teacher_amount: 125000, ta_amount: 62500 };
+test('configured class rates use optional scenarios per person, never transfer or split the budget', () => {
+  const configured = { session_amount: 187500, teacher_amount: 125000, ta_amount: 62500, no_ta_amount: 187500, solo_teacher_amount: 225000 };
   for (const teachers of [1, 2]) {
-    assert.equal(sessionPay('teacher', teachers, 0, configured), 187500 / teachers);
-    assert.equal(sessionPay('teacher', teachers, 1, configured), 125000 / teachers);
+    assert.equal(sessionPay('teacher', teachers, 0, configured), 187500);
+    assert.equal(sessionPay('teacher', teachers, 1, configured), 125000);
     assert.equal(sessionPay('ta', teachers, 1, configured), 62500);
   }
   assert.equal(sessionPay('teacher', 1, 2, configured), 125000);
@@ -35,8 +35,13 @@ test('configured class rates split the applicable teacher pool by actual teacher
   assert.equal(withSessionPay({ ...row, status: 'draft' }).pay_amount, 187500);
   assert.equal(withSessionPay({ ...row, status: 'cancelled' }).pay_amount, 0);
   const flexible = { session_amount: 1800000 / 8, teacher_amount: 1200000 / 8, ta_amount: 600000 / 8 };
-  assert.equal(sessionPay('teacher', 2, 0, flexible), 112500);
-  assert.equal(sessionPay('teacher', 1, 0, flexible), 225000);
-  assert.equal(sessionPay('teacher', 2, 1, flexible), 75000);
+  assert.equal(sessionPay('teacher', 2, 0, flexible), 150000);
+  assert.equal(sessionPay('teacher', 1, 0, flexible), 150000);
+  assert.equal(sessionPay('teacher', 2, 1, flexible), 150000);
   assert.equal(sessionPay('teacher', 1, 1, flexible), 150000);
+  assert.equal(sessionPay('teacher', 1, 0, configured, true), 225000);
+  assert.equal(sessionPay('teacher', 1, 1, configured, true), 225000);
+  assert.equal(sessionPay('teacher', 1, 0, { ...configured, solo_teacher_amount: null }, true), 187500);
+  assert.equal(sessionPay('teacher', 1, 0, { ...configured, no_ta_amount: 0 }), 0);
+  assert.equal(sessionPay('teacher', 1, 0, { ...configured, no_ta_amount: null }), 125000);
 });

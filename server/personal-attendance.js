@@ -1,7 +1,7 @@
 import { InputError, validateSession } from './session-domain.js';
 import { scheduleSlots } from '../shared/class-schedule.js';
-import { validStaffing } from '../shared/payroll.js';
-import { applyClassPayRates } from './pay-rates.js';
+import { payRateOnDate, validStaffing, withSessionPay } from '../shared/payroll.js';
+import { applyClassPayRates, readClassPayRates, snapshotPay, validMoney } from './pay-rates.js';
 import { classOnDate } from './schedule-history.js';
 
 export function registerPersonalAttendance(app, pool) {
@@ -25,6 +25,11 @@ export function registerPersonalAttendance(app, pool) {
       const { lesson, slot, role, teacher_count, ta_count, ...body } = req.body || {};
       if (!validStaffing(teacher_count, ta_count, role)) throw new InputError('Hãy chọn đội hình thực tế: ít nhất 1 giáo viên, tối đa 20 người và có trợ giảng nếu bạn chọn vai trò trợ giảng.');
       if (typeof lesson !== 'string' || !lesson.trim() || lesson.length > 255) throw new InputError('Hãy nhập tên bài học, tối đa 255 ký tự.');
+      const singleTeacher = req.body.single_teacher === true;
+      if (req.body.recalculate !== undefined && typeof req.body.recalculate !== 'boolean') throw new InputError('Lựa chọn tính lại lương không hợp lệ.');
+      if (req.body.single_teacher !== undefined && typeof req.body.single_teacher !== 'boolean') throw new InputError('Trường hợp dạy thay phải là đúng hoặc sai.');
+      if (singleTeacher && (teacher_count !== 1 || role !== 'teacher')) throw new InputError('Chỉ chọn dạy thay hai giáo viên khi thực tế có đúng một giáo viên và bạn dạy chính.');
+      if (!admin && (req.body.override_amount !== undefined || req.body.override_reason !== undefined || req.body.recalculate)) throw new InputError('Chỉ admin được đặt đơn giá riêng hoặc tính lại lương.', 403);
       const input = validateSession({ ...body, staff: [{ teacher_id: teacherId, role }] });
       connection = await db.getConnection(); await connection.beginTransaction();
       const [[teacher]] = await connection.query('SELECT id,name FROM teachers WHERE id=? FOR UPDATE', [teacherId]);
@@ -45,6 +50,14 @@ export function registerPersonalAttendance(app, pool) {
         const [legacy] = await connection.query("SELECT s.id FROM session_staff a JOIN teaching_sessions s ON s.id=a.session_id WHERE a.teacher_id=? AND s.date=? AND s.status<>'cancelled' AND s.start_time<? AND s.end_time>?", [teacher.id, input.date, input.end_time, input.start_time]);
         if (conflicts.length || legacy.length) throw new InputError('Bạn đã có bản ghi công trùng giờ này. Hãy sửa bản ghi hiện có.', 409);
       }
+      const [[detail]] = existing ? await connection.query('SELECT * FROM attendance_pay_details WHERE attendance_id=?', [existing.id]) : [[]];
+      const overrideAmount = admin && req.body.override_amount !== undefined ? req.body.override_amount : detail?.override_amount == null ? null : Number(detail.override_amount);
+      const overrideReason = admin && req.body.override_reason !== undefined ? req.body.override_reason : detail?.override_reason || '';
+      if ((overrideAmount !== null && !validMoney(overrideAmount)) || typeof overrideReason !== 'string' || overrideReason.length > 1000 || (overrideAmount !== null && !overrideReason.trim())) throw new InputError('Đơn giá riêng phải là số nguyên không âm và có lý do tối đa 1.000 ký tự.');
+      const configured = payRateOnDate((await readClassPayRates(connection)).find(r => r.class_id === cls.id), input.date);
+      const computed = withSessionPay({ ...input, role, teacher_count, ta_count, single_teacher: singleTeacher, override_amount: overrideAmount, class_pay_rate: configured });
+      const snapshot = input.status === 'completed' ? existing?.status === 'completed' && detail?.snapshot && !req.body.recalculate ? detail.snapshot : snapshotPay(computed) : null;
+      if (admin && existing?.status === 'completed' && detail?.snapshot && !req.body.recalculate && (overrideAmount !== (detail.override_amount == null ? null : Number(detail.override_amount)) || overrideReason !== detail.override_reason)) throw new InputError('Hãy chọn tính lại lương khi thay đổi đơn giá riêng của công đã xác nhận.');
       const values = [teacher.name, input.date, input.start_time, input.end_time, slot, lesson.trim(), role, input.status, input.notes];
       let id = existing?.id;
       if (existing) await connection.query('UPDATE personal_attendance SET teacher_name=?,date=?,start_time=?,end_time=?,slot=?,lesson=?,role=?,status=?,notes=?,version=version+1 WHERE id=?', [...values, id]);
@@ -54,7 +67,9 @@ export function registerPersonalAttendance(app, pool) {
       }
       await connection.query('DELETE FROM attendance_payroll WHERE attendance_id=?', [id]);
       await connection.query('INSERT INTO attendance_payroll (attendance_id,teacher_count,ta_count) VALUES (?,?,?)', [id, teacher_count, ta_count]);
-      if (admin) await connection.query('INSERT INTO attendance_actions (attendance_id,actor_account_id,actor_name,action,payload) VALUES (?,?,?,?,?)', [id, req.user.id, req.user.name, existing ? 'update' : 'create', JSON.stringify({ before: existing || null, after: { teacher_id: teacherId, ...req.body } })]);
+      await connection.query('DELETE FROM attendance_pay_details WHERE attendance_id=?', [id]);
+      await connection.query('INSERT INTO attendance_pay_details (attendance_id,single_teacher,override_amount,override_reason,snapshot) VALUES (?,?,?,?,?)', [id, Number(singleTeacher), overrideAmount, overrideReason.trim(), snapshot]);
+      if (admin) await connection.query('INSERT INTO attendance_actions (attendance_id,actor_account_id,actor_name,action,payload) VALUES (?,?,?,?,?)', [id, req.user.id, req.user.name, existing ? 'update' : 'create', JSON.stringify({ before: existing ? { ...existing, pay_details: detail || null } : null, after: { teacher_id: teacherId, ...req.body } })]);
       await connection.commit(); res.json({ id, success: true });
     } catch (error) { if (connection) await connection.rollback(); next(error); } finally { connection?.release(); }
   };

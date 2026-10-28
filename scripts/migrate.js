@@ -2,13 +2,15 @@ import mysql from 'mysql2/promise';
 import { readFile } from 'node:fs/promises';
 import { databaseConfig } from '../server/database-config.js';
 import { createTeacherAccount, hashPassword } from '../server/accounts.js';
+import { freezeExistingPayroll } from './migrate-flexible-payroll.js';
 
 const db = await mysql.createConnection({ ...databaseConfig, connectTimeout: 10000 });
 try {
-  for (const file of ['001-teaching-sessions.sql', '002-personal-accounts.sql', '003-quiz-rooms.sql', '004-class-slot-staff.sql', '005-class-slot-people.sql', '006-attendance-payroll.sql', '007-class-schedule-history.sql', '008-class-notes-admin.sql', '009-payroll-bonuses.sql', '010-class-pay-rates.sql']) {
+  for (const file of ['001-teaching-sessions.sql', '002-personal-accounts.sql', '003-quiz-rooms.sql', '004-class-slot-staff.sql', '005-class-slot-people.sql', '006-attendance-payroll.sql', '007-class-schedule-history.sql', '008-class-notes-admin.sql', '009-payroll-bonuses.sql', '010-class-pay-rates.sql', '011-flexible-payroll.sql']) {
     const sql = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
     for (const statement of sql.split(';').map(s => s.trim()).filter(Boolean)) await db.query(statement);
   }
+  await freezeExistingPayroll(db);
   await db.beginTransaction();
   try {
     const [[admin]] = await db.query("SELECT id FROM accounts WHERE account_role='admin' ORDER BY id LIMIT 1 FOR UPDATE");

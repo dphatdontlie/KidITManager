@@ -127,12 +127,13 @@ Phiên đăng nhập được lưu trong database, không cần khóa phiên dù
 
 ## Cấu hình phát lương theo lớp
 
-- Chạy `npm run db:migrate:rates` trước khi sử dụng tab mới, hoặc dùng `npm run db:migrate` khi cập nhật toàn bộ cấu trúc. Migration tạo bảng `class_pay_rates`, chạy lại được và không thay đổi bản ghi công hiện có.
-- Admin vào **Chấm công → Phát lương**, chọn lớp (ví dụ KID 5), nhập tổng tiền mỗi suất, tổng phần giáo viên khi có trợ giảng và tiền mỗi trợ giảng nhận. Tiền là số nguyên đồng không âm; phần giáo viên cộng đơn giá một trợ giảng không vượt tiền mỗi suất. Tổng tiền tùy chỉnh riêng từng lớp: nếu tổng 1.800.000đ cho 8 buổi thì nhập 225.000đ/suất.
-- Không có trợ giảng: lương mỗi giáo viên = tổng tiền suất / số giáo viên thực tế. Có trợ giảng: lương mỗi giáo viên = tổng phần giáo viên / số giáo viên thực tế; mỗi trợ giảng vẫn nhận đơn giá trợ giảng. Ví dụ 225.000 / 150.000 / 75.000đ: không trợ và 2 giáo viên thì mỗi người 112.500đ; chỉ 1 giáo viên thì nhận 225.000đ. Có trợ thì 2 giáo viên nhận 75.000đ/người, hoặc 1 giáo viên nhận 150.000đ. Nhiều trợ giảng có thể làm tổng chi vượt tiền suất.
-- Đếm theo đội hình thực tế đã lưu, kể cả người chưa tự chấm công; không suy ra từ số người đã ghi công hay số tiền trợ giảng. Cấu hình áp dụng cho mọi công của lớp, kể cả công đã ghi trong các tháng trước. Lớp chưa cấu hình giữ cách tính theo đội hình cũ.
-- Công đã xác nhận được cộng vào **Tổng thanh toán**, công nháp chỉ là dự kiến, công hủy nhận 0đ. Công thiếu đội hình vẫn cần bổ sung trước khi tính tiền. Thay đổi đơn giá cập nhật cả tiền xem trước khi chấm công, bảng công, tổng lương và dữ liệu xuất CSV.
-- Chỉ admin được lưu đơn giá; phiên bản cũ bị chặn khi có người khác cập nhật. Nếu chưa tạo được bảng mới, phần danh sách lớp và bảng công vẫn dùng đơn giá cũ; tab Phát lương báo cần cập nhật cấu trúc.
+- Với database đã có bảng đơn giá, chạy `npm run db:migrate:flexible-payroll` trước khi triển khai. Với database mới, dùng `npm run db:migrate` để tạo đầy đủ bảng. Migration chạy lại được, giữ nguyên tiền của công đã xác nhận theo cách tính trước khi cập nhật, kể cả buổi dạy cũ.
+- Admin vào **Chấm công → Phát lương**, nhập ngân sách mỗi suất, tiền mỗi giáo viên có trợ và tiền mỗi trợ giảng. Hai cột **giáo viên không có trợ** và **một người thay hai giáo viên** là tùy chọn. Trống: dùng quy tắc kế tiếp; nhập 0: nhận 0đ. Tổng tiền suất chỉ để đối chiếu ngân sách, không tự chia hoặc chuyển tiền.
+- Thứ tự chọn tiền cho mỗi người: đơn giá riêng của lượt công → một người thay hai giáo viên (nếu chọn tình huống này và thực tế đúng một giáo viên) → giáo viên không trợ (nếu số trợ thực tế bằng 0) → đơn giá giáo viên thông thường. Mỗi trợ giảng nhận đơn giá trợ riêng. Hai giáo viên cùng dạy đều nhận đơn giá mỗi người; không tự chia đôi.
+- Đơn giá theo ngày bắt đầu áp dụng; có thể đặt trước hoặc sửa một mốc trong lịch sử. Ví dụ từ ngày 01/10 giáo viên không trợ nhận 187.500đ, có trợ nhận 125.000đ và trợ nhận 62.500đ: chỉ buổi thực tế có trợ mới dùng 125.000đ. Thêm trợ vào lịch lớp không tự đổi đội hình hoặc tiền của công cũ.
+- Đội hình ghi theo từng lượt công, kể cả người chưa tự chấm. Các lượt cùng lớp/ngày/giờ khai khác đội hình có cảnh báo đối chiếu. Mục một người thay hai giáo viên cần được chọn rõ ràng, không suy từ lịch lớp hiện tại.
+- Admin có thể nhập đơn giá riêng và lý do cho từng lượt. Công đã xác nhận lưu số tiền đã chốt; chỉnh ghi chú/đội hình không tự thay tiền. Admin chọn **Tính lại** khi sửa công hoặc vào Phát lương, chọn tối đa 200 công, xem số tiền trước/sau rồi xác nhận. Sửa nhiều công được thực hiện nguyên tử, có lịch sử và kiểm tra phiên bản/đơn giá thay đổi trong lúc duyệt.
+- Công nháp tính dự kiến theo đơn giá ngày dạy; công hủy nhận 0đ; tiền đã xác nhận cộng vào Tổng thanh toán và CSV. Lớp/ngày chưa cấu hình dùng quy tắc đội hình cũ. Công cũ trước tài khoản cá nhân được giữ nguyên để đối chiếu, không tham gia chức năng sửa công/tính lại hiện hành.
 
 ## Kiểm tra tự động và giao diện
 
