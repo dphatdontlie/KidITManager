@@ -1,6 +1,7 @@
 import { InputError, validateSession } from './session-domain.js';
 import { scheduleSlots } from '../shared/class-schedule.js';
-import { validStaffing, withSessionPay } from '../shared/payroll.js';
+import { validStaffing } from '../shared/payroll.js';
+import { applyClassPayRates } from './pay-rates.js';
 import { classOnDate } from './schedule-history.js';
 
 export function registerPersonalAttendance(app, pool) {
@@ -12,7 +13,7 @@ export function registerPersonalAttendance(app, pool) {
   app.get('/api/classes/:id/personal-attendance', async (req, res, next) => {
     try {
       const [rows] = await db.query('SELECT a.*,p.teacher_count,p.ta_count FROM personal_attendance a LEFT JOIN attendance_payroll p ON p.attendance_id=a.id WHERE a.class_id=? ORDER BY a.date DESC,a.start_time DESC,a.teacher_name', [req.params.id]);
-      res.json(rows.map(withSessionPay));
+      res.json(await applyClassPayRates(db, rows));
     } catch (error) { next(error); }
   });
   const save = async (req, res, next) => {

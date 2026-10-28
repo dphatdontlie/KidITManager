@@ -7,6 +7,7 @@ import { registerAccounts, hashPassword } from '../server/accounts.js';
 import { registerPersonalAttendance } from '../server/personal-attendance.js';
 import { registerClassNotes } from '../server/class-notes.js';
 import { registerPayrollBonuses } from '../server/payroll-bonuses.js';
+import { registerPayRates } from '../server/pay-rates.js';
 import { createTeacherAccount } from '../server/accounts.js';
 import { randomUUID } from 'node:crypto';
 import { createQuizService } from '../server/quiz.js';
@@ -35,6 +36,7 @@ export function createFixture({ auth = false, quizNow = Date.now } = {}) {
     CREATE TABLE attendance_payroll (attendance_id INTEGER PRIMARY KEY REFERENCES personal_attendance(id) ON DELETE CASCADE,teacher_count INTEGER NOT NULL,ta_count INTEGER NOT NULL);
     CREATE TABLE attendance_actions (id INTEGER PRIMARY KEY AUTOINCREMENT,attendance_id INTEGER,actor_account_id INTEGER,actor_name TEXT,action TEXT,payload TEXT);
     CREATE TABLE payroll_bonuses (teacher_id INTEGER REFERENCES teachers(id),month TEXT,amount INTEGER,note TEXT,version INTEGER DEFAULT 1,updated_by TEXT,updated_at TEXT,PRIMARY KEY(teacher_id,month));
+    CREATE TABLE class_pay_rates (class_id INTEGER PRIMARY KEY REFERENCES classes(id) ON DELETE CASCADE,session_amount INTEGER,teacher_amount INTEGER,ta_amount INTEGER,version INTEGER DEFAULT 1,updated_by TEXT,updated_at TEXT);
     CREATE TABLE class_notes (id INTEGER PRIMARY KEY AUTOINCREMENT,class_id INTEGER REFERENCES classes(id),date TEXT,category TEXT,content TEXT,amount INTEGER,status TEXT,author_account_id INTEGER,author_name TEXT,updated_by TEXT,created_at TEXT,updated_at TEXT,version INTEGER DEFAULT 1);
     INSERT INTO classes VALUES (1,'Lớp kiểm thử','GV kiểm thử A','GV kiểm thử B','Thứ 5 (15:15 - 17:15)','1',10);
     INSERT INTO teachers VALUES (1,'GV kiểm thử A',1,''),(2,'GV kiểm thử B',2,''),(3,'GV dạy thay C',1,'');
@@ -71,6 +73,7 @@ export function createFixture({ auth = false, quizNow = Date.now } = {}) {
     registerPersonalAttendance(app, pool);
     registerClassNotes(app, pool);
     registerPayrollBonuses(app, pool);
+    registerPayRates(app, pool);
   }
   quiz.registerHost(app);
   registerClasses(app, pool);

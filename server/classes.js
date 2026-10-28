@@ -2,6 +2,7 @@ import { ATTENDANCE_START_DATE, isCalendarDate, scheduleSlots } from '../shared/
 import { scheduleSnapshot } from '../shared/schedule-history.js';
 import { loadScheduleHistory } from './schedule-history.js';
 import { InputError } from './session-domain.js';
+import { readClassPayRates } from './pay-rates.js';
 
 export function validateSlotStaff(staff, schedule) {
   if (!Array.isArray(staff)) throw new InputError('Phân công theo suất phải là danh sách.');
@@ -42,7 +43,8 @@ export function registerClasses(app, pool) {
   const withStaff = async rows => {
     const staff = await loadStaff(db);
     const history = await loadScheduleHistory(db);
-    return rows.map(row => ({ ...row, schedule_history: history.filter(s => s.class_id === row.id), slot_staff: staff.filter(s => s.class_id === row.id).map(({ class_id: _classId, ...assignment }) => assignment) }));
+    const rates = new Map((await readClassPayRates(db)).map(rate => [rate.class_id, rate]));
+    return rows.map(row => ({ ...row, class_pay_rate: rates.get(row.id) || null, schedule_history: history.filter(s => s.class_id === row.id), slot_staff: staff.filter(s => s.class_id === row.id).map(({ class_id: _classId, ...assignment }) => assignment) }));
   };
   app.get('/api/classes', async (req, res) => {
     const [rows] = await db.query('SELECT c.*, COUNT(cs.student_id) AS enrolledCount FROM classes c LEFT JOIN class_students cs ON c.id=cs.class_id GROUP BY c.id');

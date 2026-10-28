@@ -17,8 +17,11 @@ export function sessionPay(role, teacherCount, taCount) {
 }
 
 export function withSessionPay(row) {
-  const rate = sessionPay(row.role, row.teacher_count, row.ta_count);
-  return { ...row, pay_rate: rate, pay_amount: row.status === 'cancelled' ? 0 : rate };
+  const configured = row.class_pay_rate;
+  const rate = configured && validStaffing(row.teacher_count, row.ta_count, row.role)
+    ? (row.role === 'ta' ? configured.ta_amount : configured.teacher_amount)
+    : sessionPay(row.role, row.teacher_count, row.ta_count);
+  return { ...row, pay_basis: configured ? 'class' : 'staffing', pay_rate: rate, pay_amount: row.status === 'cancelled' ? 0 : rate };
 }
 
 export function summarizePay(rows) {

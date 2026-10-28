@@ -1,5 +1,6 @@
 import { InputError, validateSession, monthRange } from './session-domain.js';
 import { staffingCounts, withSessionPay } from '../shared/payroll.js';
+import { applyClassPayRates } from './pay-rates.js';
 
 export function registerTeachingSessions(app, pool) {
   const db = pool.promise();
@@ -68,7 +69,7 @@ export function registerTeachingSessions(app, pool) {
       let entries = [];
       if (req.user) {
         [entries] = await db.query('SELECT a.*,c.name AS class_name,p.teacher_count,p.ta_count,(SELECT actor_name FROM attendance_actions WHERE attendance_id=a.id ORDER BY id DESC LIMIT 1) AS recorded_by FROM personal_attendance a JOIN classes c ON c.id=a.class_id LEFT JOIN attendance_payroll p ON p.attendance_id=a.id WHERE a.date>=? AND a.date<? ORDER BY a.date,a.start_time,a.teacher_name', [from, to]);
-        entries = entries.map(withSessionPay);
+        entries = await applyClassPayRates(db, entries);
         personal = entries.filter(row => row.status === 'completed').map(row => ({ ...row, session_id: `personal-${row.id}`, work_units: 1 }));
       }
       const counts = new Map();
@@ -76,7 +77,7 @@ export function registerTeachingSessions(app, pool) {
         const staff = counts.get(row.session_id) || [];
         staff.push(row); counts.set(row.session_id, staff);
       }
-      const historic = rows.map(row => withSessionPay({ ...row, status: 'completed', ...staffingCounts(counts.get(row.session_id)) }));
+      const historic = await applyClassPayRates(db, rows.map(row => withSessionPay({ ...row, status: 'completed', ...staffingCounts(counts.get(row.session_id)) })));
       const combined = [...historic, ...personal].sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time) || a.teacher_name.localeCompare(b.teacher_name, 'vi'));
       res.json({ basis: 'session', rows: combined, legacy, entries });
     } catch (error) { next(error); }

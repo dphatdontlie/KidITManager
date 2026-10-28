@@ -125,6 +125,14 @@ Phiên đăng nhập được lưu trong database, không cần khóa phiên dù
 
 `git rm --cached` đã bỏ theo dõi các dump SQL, file `.db` và `sqlite.zip`; bản gốc vẫn ở máy. `.gitignore` và `.vercelignore` ngăn đưa các file đó vào những bản mới. Database từ xa vẫn được giữ nguyên.
 
+## Cấu hình phát lương theo lớp
+
+- Chạy `npm run db:migrate:rates` trước khi sử dụng tab mới, hoặc dùng `npm run db:migrate` khi cập nhật toàn bộ cấu trúc. Migration tạo bảng `class_pay_rates`, chạy lại được và không thay đổi bản ghi công hiện có.
+- Admin vào **Chấm công → Phát lương**, chọn lớp (ví dụ KID 5), nhập tiền mỗi suất, tiền mỗi giáo viên nhận và tiền mỗi trợ giảng nhận. Tiền là số nguyên đồng không âm; tổng hai đơn giá cho đội hình 1 giáo viên + 1 trợ giảng không vượt tiền mỗi suất.
+- Đơn giá áp dụng riêng cho từng người theo vai trò, không chia theo số người. Khi đội hình có nhiều người, tổng trả thực tế có thể vượt tiền mỗi suất. Cấu hình áp dụng cho mọi công của lớp, kể cả công đã ghi trong các tháng trước. Lớp chưa cấu hình giữ cách tính theo đội hình cũ.
+- Công đã xác nhận được cộng vào **Tổng thanh toán**, công nháp chỉ là dự kiến, công hủy nhận 0đ. Công thiếu đội hình vẫn cần bổ sung trước khi tính tiền. Thay đổi đơn giá cập nhật cả tiền xem trước khi chấm công, bảng công, tổng lương và dữ liệu xuất CSV.
+- Chỉ admin được lưu đơn giá; phiên bản cũ bị chặn khi có người khác cập nhật. Nếu chưa tạo được bảng mới, phần danh sách lớp và bảng công vẫn dùng đơn giá cũ; tab Phát lương báo cần cập nhật cấu trúc.
+
 ## Kiểm tra tự động và giao diện
 
 - `npm test`: kiểm tra đăng nhập, phân quyền admin, tạo/đổi tài khoản, thu hồi phiên, chấm công cá nhân, hai giáo viên cùng ca, chống chấm hộ/trùng giờ, suất theo lịch, bảng tổng, dữ liệu công cũ và các công cụ giảng dạy.
