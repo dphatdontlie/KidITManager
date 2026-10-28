@@ -128,8 +128,9 @@ Phiên đăng nhập được lưu trong database, không cần khóa phiên dù
 ## Cấu hình phát lương theo lớp
 
 - Chạy `npm run db:migrate:rates` trước khi sử dụng tab mới, hoặc dùng `npm run db:migrate` khi cập nhật toàn bộ cấu trúc. Migration tạo bảng `class_pay_rates`, chạy lại được và không thay đổi bản ghi công hiện có.
-- Admin vào **Chấm công → Phát lương**, chọn lớp (ví dụ KID 5), nhập tiền mỗi suất, tiền mỗi giáo viên nhận và tiền mỗi trợ giảng nhận. Tiền là số nguyên đồng không âm; tổng hai đơn giá cho đội hình 1 giáo viên + 1 trợ giảng không vượt tiền mỗi suất.
-- Đơn giá áp dụng riêng cho từng người theo vai trò, không chia theo số người. Khi đội hình có nhiều người, tổng trả thực tế có thể vượt tiền mỗi suất. Cấu hình áp dụng cho mọi công của lớp, kể cả công đã ghi trong các tháng trước. Lớp chưa cấu hình giữ cách tính theo đội hình cũ.
+- Admin vào **Chấm công → Phát lương**, chọn lớp (ví dụ KID 5), nhập tổng tiền mỗi suất, tổng phần giáo viên khi có trợ giảng và tiền mỗi trợ giảng nhận. Tiền là số nguyên đồng không âm; phần giáo viên cộng đơn giá một trợ giảng không vượt tiền mỗi suất. Tổng tiền tùy chỉnh riêng từng lớp: nếu tổng 1.800.000đ cho 8 buổi thì nhập 225.000đ/suất.
+- Không có trợ giảng: lương mỗi giáo viên = tổng tiền suất / số giáo viên thực tế. Có trợ giảng: lương mỗi giáo viên = tổng phần giáo viên / số giáo viên thực tế; mỗi trợ giảng vẫn nhận đơn giá trợ giảng. Ví dụ 225.000 / 150.000 / 75.000đ: không trợ và 2 giáo viên thì mỗi người 112.500đ; chỉ 1 giáo viên thì nhận 225.000đ. Có trợ thì 2 giáo viên nhận 75.000đ/người, hoặc 1 giáo viên nhận 150.000đ. Nhiều trợ giảng có thể làm tổng chi vượt tiền suất.
+- Đếm theo đội hình thực tế đã lưu, kể cả người chưa tự chấm công; không suy ra từ số người đã ghi công hay số tiền trợ giảng. Cấu hình áp dụng cho mọi công của lớp, kể cả công đã ghi trong các tháng trước. Lớp chưa cấu hình giữ cách tính theo đội hình cũ.
 - Công đã xác nhận được cộng vào **Tổng thanh toán**, công nháp chỉ là dự kiến, công hủy nhận 0đ. Công thiếu đội hình vẫn cần bổ sung trước khi tính tiền. Thay đổi đơn giá cập nhật cả tiền xem trước khi chấm công, bảng công, tổng lương và dữ liệu xuất CSV.
 - Chỉ admin được lưu đơn giá; phiên bản cũ bị chặn khi có người khác cập nhật. Nếu chưa tạo được bảng mới, phần danh sách lớp và bảng công vẫn dùng đơn giá cũ; tab Phát lương báo cần cập nhật cấu trúc.
 
