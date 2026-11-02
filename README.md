@@ -1,5 +1,19 @@
 # KidIT Manager
 
+## Trợ lý điều phối AI
+
+Admin mở **Trợ lý điều phối** (`/assistant`) để hỏi lịch theo ngày, bài học từng suất, suất đã kết thúc chưa có tên bài trong công xác nhận và đề xuất buổi học bổ sung một lần. Mỗi lượt tra tối đa 31 ngày, kèm liên kết về lớp/lịch và thời điểm tra dữ liệu. Cuộc trò chuyện chỉ giữ trong trang hiện tại, không lưu vào database.
+
+- Máy chủ dùng các công cụ chỉ đọc, hỗ trợ OpenRouter Chat Completions hoặc OpenAI Responses; AI không nhận trường mật khẩu, số điện thoại hay dữ liệu tiền lương. Tên lớp/nhân sự, câu hỏi và ghi chú giảng dạy có thể được gửi khi tra cứu. Không cần migration mới.
+- Sao chép `.env.example` thành `.env`, đặt `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY` và `OPENROUTER_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free`. Dùng khóa mới nếu khóa trước đó đã chia sẻ trong chat. `npm run dev:api` đọc `.env` trên Node 22+; không thêm tiền tố `VITE_` cho các biến này. Trên Vercel, đặt các biến trong Environment Variables rồi triển khai lại. Không nhập khóa vào chat hoặc commit `.env`.
+- Có thể chọn `AI_PROVIDER=openai` với `OPENAI_API_KEY` và `OPENAI_MODEL` để dùng kết nối OpenAI hiện có. Chỉ một nhà cung cấp được dùng mỗi lượt, không tự chuyển qua model trả phí.
+- Endpoint Nemotron miễn phí có thông báo không tải thông tin bí mật hoặc dữ liệu cá nhân và có ghi log. Chỉ dùng dữ liệu giả để thử endpoint này; với dữ liệu trung tâm thật, chọn endpoint và chính sách dữ liệu phù hợp trước khi kích hoạt. Không suy rằng dữ liệu được bảo vệ bởi chính sách OpenAI khi dùng OpenRouter. [Thông báo endpoint](https://openrouter.ai/nvidia/nemotron-3-ultra-550b-a55b:free).
+- Khi chưa cấu hình, trang hiển thị hướng dẫn kết nối và khóa gửi câu hỏi. Giới hạn 6 câu/phút/tài khoản, 1 yêu cầu đang xử lý/tài khoản, tối đa 3 yêu cầu/tiến trình; bộ giới hạn trong bộ nhớ không phải hạn mức toàn cục giữa các Vercel instance. Đặt thêm hạn mức chi tiêu tại nhà cung cấp cho môi trường công khai.
+- Lịch tra đúng phiên bản ngày hiệu lực. Bài học lấy từ công cá nhân; công nháp/hủy/cũ được phân biệt, các bài khác nhau giữa nhiều người được đánh dấu chưa thống nhất. Ghi chú là theo ngày, không thuộc riêng một suất. Chưa ghi bài học không có nghĩa chưa dạy.
+- Đề xuất chỉ dành cho buổi bổ sung một lần, chưa lưu. Cần chỉ rõ lớp, nhân sự, phòng, khoảng ngày và khung giờ. Hệ thống kiểm tra lịch lớp, phòng, nhân sự, học sinh chung lớp và công đã ghi. Phòng/nhân sự trong lịch cũ có thể còn thiếu hoặc là tên tự do; chưa có lịch rảnh, nghỉ phép, di chuyển, danh mục phòng hay buổi nghỉ ngoại lệ. Kết quả chỉ khẳng định không trùng dữ liệu đã ghi nhận. Thêm lịch tuần qua **Thông tin lớp** như hiện tại.
+- OpenRouter dùng công cụ Chat Completions và giữ nguyên `reasoning_details` trên máy chủ giữa các bước gọi công cụ, không gửi nội dung suy luận về giao diện. Hiện dùng phản hồi hoàn chỉnh (`stream: false`) để kiểm tra đủ kết quả tra cứu. `store: false` chỉ áp dụng cho kết nối OpenAI; chính sách log/lưu dữ liệu tùy nhà cung cấp. Tài liệu: [OpenRouter tool calling](https://openrouter.ai/docs/guides/features/tool-calling), [Reasoning details](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens), [OpenAI data controls](https://developers.openai.com/api/docs/guides/your-data).
+
+
 Ứng dụng quản lý học sinh, lớp học, lịch học, học phí và công giảng dạy. Frontend React/Vite, API Express trên Vercel, database MySQL/TiDB qua TLS.
 
 ## Giao diện chính đã chuyển theo bản duyệt

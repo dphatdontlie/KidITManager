@@ -11,8 +11,9 @@ import { registerPayRates } from '../server/pay-rates.js';
 import { createTeacherAccount } from '../server/accounts.js';
 import { randomUUID } from 'node:crypto';
 import { createQuizService } from '../server/quiz.js';
+import { registerAssistant } from '../server/assistant.js';
 
-export function createFixture({ auth = false, quizNow = Date.now } = {}) {
+export function createFixture({ auth = false, quizNow = Date.now, assistant = {} } = {}) {
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(`
     PRAGMA foreign_keys=ON;
@@ -79,6 +80,7 @@ export function createFixture({ auth = false, quizNow = Date.now } = {}) {
     registerPayRates(app, pool);
   }
   quiz.registerHost(app);
+  registerAssistant(app, pool, assistant);
   registerClasses(app, pool);
   app.get('/api/teachers', async (req, res) => res.json((await connection.query('SELECT t.*,a.username FROM teachers t LEFT JOIN accounts a ON a.teacher_id=t.id'))[0]));
   app.get('/api/students', async (req, res) => res.json((await connection.query('SELECT * FROM students'))[0]));

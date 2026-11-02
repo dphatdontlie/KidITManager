@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:api": "node api/index.js",
+    "dev:api": "node --env-file-if-exists=.env api/index.js",
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:quiz": "node scripts/migrate-quiz.js",
     "db:migrate:payroll": "node scripts/migrate-payroll.js",

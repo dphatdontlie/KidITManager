@@ -14,6 +14,7 @@ import { registerClassNotes } from '../server/class-notes.js';
 import { registerPayrollBonuses } from '../server/payroll-bonuses.js';
 import { registerPayRates } from '../server/pay-rates.js';
 import { createQuizService } from '../server/quiz.js';
+import { registerAssistant } from '../server/assistant.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -179,6 +180,7 @@ function initDb() {
 const quiz = createQuizService(pool);
 quiz.registerPublic(app);
 registerAccounts(app, pool);
+registerAssistant(app, pool);
 quiz.registerHost(app);
 registerPersonalAttendance(app, pool);
 registerClassNotes(app, pool);
