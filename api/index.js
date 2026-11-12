@@ -17,6 +17,7 @@ import { createQuizService } from '../server/quiz.js';
 import { registerAssistant } from '../server/assistant.js';
 import { registerPush } from '../server/push.js';
 import { registerPushCron } from '../server/push-reminders.js';
+import { registerAttendanceSessions } from '../server/attendance-sessions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -183,6 +184,7 @@ const quiz = createQuizService(pool);
 quiz.registerPublic(app);
 registerPushCron(app, pool);
 registerAccounts(app, pool);
+registerAttendanceSessions(app, pool);
 registerPush(app, pool);
 registerAssistant(app, pool);
 quiz.registerHost(app);

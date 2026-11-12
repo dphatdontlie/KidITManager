@@ -71,7 +71,7 @@ export default function Notifications() {
       <p className="push-feedback" role="status" aria-live="polite">{busy ? 'Đang xử lý...' : notice}</p>
     </section>
     {prefs && <section className="notification-panel" aria-labelledby="teaching-reminders"><h2 id="teaching-reminders">Nhắc trước giờ dạy</h2>
-      {prefs.canRemind ? <><p>Nhắc các suất được phân công cho bạn theo lịch có hiệu lực của ngày dạy. Áp dụng thời gian nhắc cho mọi thiết bị của tài khoản.</p>
+      {prefs.canRemind ? <><p>{prefs.allClasses ? 'Admin nhận nhắc giờ cho tất cả suất học của trung tâm, cùng bản tổng hợp lịch lúc 9:00 mỗi ngày (giờ Việt Nam).' : 'Nhắc các suất được phân công cho bạn theo lịch có hiệu lực của ngày dạy.'} Áp dụng thời gian nhắc cho mọi thiết bị của tài khoản.</p>
         <form className="push-preferences" onSubmit={e => { e.preventDefault(); action(async () => {
           const saved = await api('/api/push/preferences', jsonBody({ leadMinutes: lead }, 'PUT')); setPrefs(saved); setNotice('Đã lưu thời gian nhắc giờ.');
         }); }}><label htmlFor="push-lead">Thời gian nhắc<select id="push-lead" value={lead} disabled={busy} onChange={e => setLead(Number(e.target.value))}><option value={5}>Trước 5 phút</option><option value={15}>Trước 15 phút</option><option value={30}>Trước 30 phút</option></select></label><Button type="submit" disabled={busy || lead === prefs.leadMinutes}>Lưu thời gian nhắc</Button></form>

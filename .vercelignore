@@ -1,6 +1,7 @@
 *.db
 *.sql
 !migrations/012-push-subscriptions.sql
+!migrations/013-student-attendance-sessions.sql
 *.zip
 sqlite/
 backend/

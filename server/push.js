@@ -46,16 +46,16 @@ export function registerPush(app, pool, { env = process.env, send = (...args) =>
   app.get('/api/push/preferences', async (req, res, next) => {
     try {
       const [[row]] = await db.query('SELECT lead_minutes FROM push_preferences WHERE account_id=?', [req.user.id]);
-      res.json({ leadMinutes: row?.lead_minutes ?? 15, canRemind: !!req.user.teacher_id });
+      res.json({ leadMinutes: row?.lead_minutes ?? 15, canRemind: req.user.role === 'admin' || !!req.user.teacher_id, allClasses: req.user.role === 'admin', dailySummaryHour: req.user.role === 'admin' ? 9 : null });
     } catch (error) { next(error); }
   });
   app.put('/api/push/preferences', async (req, res, next) => {
     try {
       const lead = req.body?.leadMinutes;
       if (![5, 15, 30].includes(lead)) throw new InputError('Chọn nhắc trước 5, 15 hoặc 30 phút.');
-      if (!req.user.teacher_id) throw new InputError('Tài khoản chưa liên kết giáo viên để nhận nhắc giờ.', 403);
+      if (req.user.role !== 'admin' && !req.user.teacher_id) throw new InputError('Tài khoản chưa liên kết giáo viên để nhận nhắc giờ.', 403);
       await db.query('INSERT INTO push_preferences (account_id,lead_minutes) VALUES (?,?) ON DUPLICATE KEY UPDATE lead_minutes=VALUES(lead_minutes)', [req.user.id, lead]);
-      res.json({ leadMinutes: lead, canRemind: true });
+      res.json({ leadMinutes: lead, canRemind: true, allClasses: req.user.role === 'admin', dailySummaryHour: req.user.role === 'admin' ? 9 : null });
     } catch (error) { next(error); }
   });
   const ready = () => {

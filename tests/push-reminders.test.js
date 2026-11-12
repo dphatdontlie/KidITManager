@@ -75,7 +75,7 @@ test('a slow batch leaves jobs unclaimed so the next minute can process them', a
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM push_deliveries').get().n, 0);
   assert.equal((await runPushReminders(f.pool, f.options)).sent, 1);
 });
-test('preferences are account-scoped, validated, and administrators without teacher links cannot set reminders', async t => {
+test('preferences are account-scoped and administrators can configure reminders without teacher links', async t => {
   const f = setup(t);
   const server = f.app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
@@ -89,8 +89,36 @@ test('preferences are account-scoped, validated, and administrators without teac
   assert.equal((await save('15')).status, 400);
   const other = await login('gv2');
   assert.equal((await (await fetch(`${url}/push/preferences`, { headers: { Cookie: other } })).json()).leadMinutes, 15);
-  assert.equal((await save(15, await login('admin'))).status, 403);
+  const adminSettings = await save(15, await login('admin'));
+  assert.equal(adminSettings.status, 200);
+  assert.equal((await adminSettings.json()).allClasses, true);
   assert.equal((await fetch(`${url}/cron/push-reminders`)).status, 401);
   assert.equal((await fetch(`${url}/cron/push-reminders`, { headers: { Authorization: 'Bearer wrong' } })).status, 401);
   assert.equal((await fetch(`${url}/cron/push-reminders`, { headers: { Authorization: `Bearer ${env.CRON_SECRET}` } })).status, 200);
+});
+test('admin receives all class reminders and one daily 9am digest, including an empty day', () => {
+  const admin = { teacher_id: null, account_role: 'admin', lead_minutes: 15 };
+  assert.equal(dueReminders([cls], [admin], teachers, now).length, 1);
+  const morning = Date.parse('2026-10-01T09:00:00+07:00');
+  const digest = dueReminders([cls], [admin, ...subscriptions], teachers, morning);
+  assert.equal(digest.length, 1);
+  assert.equal(digest[0].eventKey, 'admin-morning:2026-10-01');
+  assert.match(digest[0].payload.body, /15:15/);
+  assert.equal(dueReminders([], [admin], teachers, morning).length, 1);
+  assert.equal(dueReminders([cls], [admin], teachers, morning - 1).length, 0);
+  assert.equal(dueReminders([cls], [admin], teachers, morning + 5 * 60000).length, 0);
+});
+test('the runner includes admin subscriptions without teacher records and deduplicates the daily digest', async t => {
+  let sent = 0;
+  const f = setup(t, async (_subscription, payload) => { assert.match(JSON.parse(payload).title, /Lịch dạy hôm nay/); sent++; });
+  const admin = f.sqlite.prepare("SELECT id FROM accounts WHERE username='admin'").get().id;
+  const subscription = JSON.parse(f.sqlite.prepare('SELECT subscription FROM push_subscriptions').get().subscription);
+  subscription.endpoint = 'https://web.push.apple.com/admin-device';
+  const id = createHash('sha256').update(subscription.endpoint).digest('hex');
+  f.sqlite.prepare('INSERT INTO account_sessions VALUES (?,?,?)').run('admin-session', admin, '2099-01-01 00:00:00');
+  f.sqlite.prepare('INSERT INTO push_subscriptions (endpoint_hash,account_id,session_hash,subscription) VALUES (?,?,?,?)').run(id, admin, 'admin-session', JSON.stringify(subscription));
+  const options = { ...f.options, now: () => Date.parse('2026-10-01T09:00:00+07:00') };
+  assert.equal((await runPushReminders(f.pool, options)).sent, 1);
+  assert.equal((await runPushReminders(f.pool, options)).sent, 0);
+  assert.equal(sent, 1);
 });

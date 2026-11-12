@@ -27,7 +27,7 @@ export function dueReminders(classes, subscriptions, teachers, now) {
       const assigned = new Set(people.flatMap(p => String(p.name).split(/[,;\n]/).map(name => matchingTeacher(name.trim()))).filter(Boolean));
       for (const sub of subscriptions) {
         const lead = Number(sub.lead_minutes ?? 15);
-        if (![5, 15, 30].includes(lead) || !assigned.has(sub.teacher_id)) continue;
+        if (![5, 15, 30].includes(lead) || (sub.account_role !== 'admin' && !assigned.has(sub.teacher_id))) continue;
         const due = start - lead * 60000;
         // Catch up a missed minute, but never send old reminders or send after class starts.
         if (now < due || now - due >= 5 * 60000) continue;
@@ -35,6 +35,21 @@ export function dueReminders(classes, subscriptions, teachers, now) {
           payload: { title: 'Sắp đến giờ dạy', body: `${String(cls.name).slice(0, 120)} bắt đầu lúc ${slot.start_time}${version.room ? ` · ${String(version.room).slice(0, 80)}` : ''}.`, url: `/classes/${cls.id}`, tag: `kidit-${cls.id}-${date}-${slot.start_time}` } });
       }
     }
+  }
+  const date = dateAt(now);
+  const morning = Date.parse(`${date}T09:00:00+07:00`);
+  if (now >= morning && now < morning + 5 * 60000) {
+    const today = classes.flatMap(cls => {
+      const version = scheduleOnDate(cls, date);
+      return scheduleSlots(version.schedule, date).map(slot => ({ name: String(cls.name).slice(0, 80), time: slot.start_time }));
+    }).sort((a, b) => a.time.localeCompare(b.time) || a.name.localeCompare(b.name, 'vi'));
+    const preview = today.slice(0, 3).map(slot => `${slot.time} ${slot.name}`).join('; ');
+    for (const sub of subscriptions.filter(s => s.account_role === 'admin')) jobs.push({ ...sub,
+      eventKey: `admin-morning:${date}`, start: morning + 5 * 60000,
+      payload: { title: 'Lịch dạy hôm nay · KidIT',
+        body: today.length ? `${today.length} suất học. ${preview}${today.length > 3 ? '; mở KidIT xem toàn bộ lịch.' : '.'}` : 'Hôm nay chưa có suất học trong lịch trung tâm.',
+        url: '/schedule', tag: `kidit-morning-${date}` },
+    });
   }
   return jobs.sort((a, b) => a.start - b.start);
 }
@@ -44,8 +59,8 @@ export async function runPushReminders(pool, { env = process.env, now = Date.now
   if (!config) throw Object.assign(new Error('Chưa cấu hình khóa Web Push.'), { status: 503 });
   const db = pool.promise();
   const instant = now();
-  const [subscriptions] = await db.query(`SELECT p.*,a.teacher_id,t.name,COALESCE(f.lead_minutes,15) AS lead_minutes
-    FROM push_subscriptions p JOIN accounts a ON a.id=p.account_id JOIN teachers t ON t.id=a.teacher_id
+  const [subscriptions] = await db.query(`SELECT p.*,a.account_role,a.teacher_id,t.name,COALESCE(f.lead_minutes,15) AS lead_minutes
+    FROM push_subscriptions p JOIN accounts a ON a.id=p.account_id LEFT JOIN teachers t ON t.id=a.teacher_id
     JOIN account_sessions s ON s.token_hash=p.session_hash AND s.account_id=p.account_id
     LEFT JOIN push_preferences f ON f.account_id=p.account_id WHERE s.expires_at>CURRENT_TIMESTAMP`);
   const [classes] = await db.query('SELECT * FROM classes');

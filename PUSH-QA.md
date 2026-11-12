@@ -17,11 +17,20 @@ Mobile/coarse-pointer form controls now use a minimum 16px font to address iOS f
 
 ## Automated checks
 
+### Admin schedule notifications and session attendance
+
+Design read: keep KidIT's existing forms, green accent and light/dark themes (ENERGY 1 / RHYTHM 1 / MOTION 1). Slot rows identify which lesson to open; a distinct session header shows whether edits are allowed. The initial roster has explicit pending states. Date entry reuses the existing day/month/year component to avoid locale-dependent date ordering. The existing 3D view remains available, with read-only state independent of loading.
+
+- Hard gate PASS: subscription/digest tests cover admin accounts without teacher records, 09:00 Vietnam timing, empty days and daily deduplication. Session tests cover unique opening, separate same-day slots, snapshot rosters, role checks, start/end boundaries, stale writes, closure/reopening and rollback on audit failure. UI exercised open, present, absent, clear, cancel close, confirm close, read-only teacher review, admin reopen, no-class day, invalid date, Hôm nay, reload and 3D mode. Phone fields retain 16px type; no document overflow observed at 320/390/768px.
+- Purpose gate PASS: inherited colors/type; slot and session panels distinguish scheduled lessons from saved attendance. Native controls and existing 3D assets only; no decorative additions.
+- Liveliness PASS: 1/1/1 inherited; clear session state and action lead the view; whitespace separates the slot list, session state, counts and roster.
+- Craftsmanship PASS: existing daily attendance remains separate for reference, payroll is untouched, changes use transactional audit and version checks. Closed entries cannot be changed until an admin reopens. Browser checks use fixture data and a fixed lesson clock, not real student records. Screenshots: `outputs/attendance-session.png`, `outputs/admin-notifications.png`. Actual 09:00 push delivery and iPhone notification receipt require the normal scheduled run on an opted-in device.
+
 - Subscription API: authentication, owner/session isolation, invalid endpoints and keys, rate limit, logout cleanup, expired endpoints and transient failures.
 - Reminder runner: Vietnam dates, midnight crossing, reminder window, lead time, historic/per-slot staff, ambiguous names, overlapping calls, expired sessions, retries and dead endpoints.
 - Worker: malformed payload still displays a notification; navigation restricted to the same origin; no fetch cache of private data.
 
-Verification: `npm test` passed all 101 tests. After the final reminder-payload adjustment, the 18 Push/worker/reminder tests passed again. `npm run build`, `npm run lint` and `git diff --check` passed. Build retains the existing classroom-scene chunk-size advisory.
+Latest verification: `npm test` passed all 109 tests, including the admin morning digest and student attendance session tests. `npm run build`, `npm run lint` and `git diff --check` passed. Build retains the existing classroom-scene chunk-size advisory.
 
 ## Browser verification
 

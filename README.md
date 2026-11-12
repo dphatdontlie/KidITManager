@@ -17,7 +17,7 @@ Sau khi triển khai, mở **Thông báo** trong menu. Trên iPhone/iPad iOS 16.
 
 ### Nhắc trước giờ dạy
 
-Giáo viên chọn nhắc trước **5, 15 hoặc 30 phút**, mặc định 15 phút, trong trang Thông báo. Thiết lập áp dụng cho tài khoản; bật/tắt nhận áp dụng riêng cho thiết bị và phiên đăng nhập. Admin chưa liên kết giáo viên chỉ nhận được thông báo thử. Bộ nhắc dùng ngày và giờ Việt Nam, lịch có hiệu lực theo ngày và phân công từng suất; hỗ trợ cả giáo viên và trợ giảng. Tên nhân sự khớp chính xác sau khi chuẩn hóa Unicode/chữ hoa/thường; tên trùng nhiều giáo viên sẽ được bỏ qua để tránh gửi nhầm. Chưa có dữ liệu lịch nghỉ hoặc buổi ngoại lệ để tự bỏ qua; không gửi thay đổi lịch như một thông báo riêng.
+Giáo viên chọn nhắc trước **5, 15 hoặc 30 phút**, mặc định 15 phút, trong trang Thông báo. Thiết lập áp dụng cho tài khoản; bật/tắt nhận áp dụng riêng cho thiết bị và phiên đăng nhập. **Admin nhận nhắc cho tất cả suất học của trung tâm**, không cần liên kết hồ sơ giáo viên, và nhận **bản tổng hợp lúc 09:00 mỗi ngày theo giờ Việt Nam**. Ngày không có lịch vẫn có thông báo xác nhận chưa có suất học. Bản tổng hợp nêu tổng số suất, xem trước tối đa ba suất đầu và dẫn về trang Lịch dạy. Mỗi thiết bị chỉ được gửi một bản tổng hợp cho một ngày; cron bắt kịp trong 5 phút sau 09:00, không gửi bù bản sáng sau cửa sổ này. Admin cần có đăng ký Push đang hoạt động như mọi tài khoản khác. Bộ nhắc dùng lịch có hiệu lực theo ngày và phân công từng suất; hỗ trợ cả giáo viên và trợ giảng. Tên nhân sự khớp chính xác sau khi chuẩn hóa Unicode/chữ hoa/thường; tên trùng nhiều giáo viên sẽ được bỏ qua để tránh gửi nhầm. Chưa có dữ liệu lịch nghỉ hoặc buổi ngoại lệ để tự bỏ qua; không gửi thay đổi lịch như một thông báo riêng.
 
 **Bắt buộc cấu hình tác vụ chạy mỗi phút ở server**, chọn một trong hai cách:
 
@@ -106,15 +106,19 @@ Có thể sửa/hủy hoặc **Xóa buổi** chấm nhầm của mình. Xóa có
 - Mật khẩu lưu bằng scrypt có salt; phiên đăng nhập dùng token ngẫu nhiên, cookie HttpOnly/SameSite, thời hạn 7 ngày. Đổi mật khẩu thu hồi các phiên của tài khoản đó. Admin có thể ghi/sửa công hộ bất kỳ giáo viên hoặc trợ giảng; giáo viên chỉ ghi/sửa công của mình.
 - Bảng tổng công và xuất CSV công khai cho mọi tài khoản đã đăng nhập, gồm bài học và suất. Người chưa đăng nhập không truy cập API dữ liệu.
 
-Điểm danh giáo viên kiểu cũ vẫn được giữ và hiển thị riêng trong bảng công để đối chiếu. Các dòng này chưa đủ giờ ca nên không tự cộng vào công mới. Điểm danh học sinh hiện vẫn theo ngày và độc lập với công giảng dạy.
+Điểm danh giáo viên kiểu cũ vẫn được giữ và hiển thị riêng trong bảng công để đối chiếu. Các dòng này chưa đủ giờ ca nên không tự cộng vào công mới. Điểm danh học sinh dùng phiên riêng cho từng suất, độc lập với công giảng dạy và tiền lương.
 
-## Ngày điểm danh học sinh theo lịch lớp
+## Phiên điểm danh học sinh và lịch lớp
 
 - Bắt đầu từ **01/10/2026 (thứ Năm)**, không có ngày trước mốc này trong phần chọn điểm danh.
-- Chỉ chọn được đúng thứ có lịch học của lớp. Ví dụ, lớp học thứ Năm có các ngày 01, 08, 15, 22, 29 trong tháng 10/2026. Một lớp có hai ca cùng ngày vẫn có một ngày điểm danh học sinh.
-- Đổi tháng/năm sẽ tự tính theo lịch thực tế, gồm cả năm nhuận. Lớp chưa có lịch thì không có ngày để điểm danh.
+- Vào chi tiết lớp → Điểm danh học sinh, chọn ngày và suất. Admin hoặc giáo viên/trợ giảng được phân công bấm **Mở điểm danh** trong thời gian từ giờ bắt đầu đến trước giờ kết thúc của suất. Thời gian được kiểm tra tại server, theo giờ Việt Nam. Nút Tải lại phiên cập nhật điều kiện mở; khi trang đang mở, danh sách tự tải lại mỗi 30 giây.
+- Mỗi lớp/ngày/giờ bắt đầu có tối đa một phiên. Hai suất trong cùng ngày có kết quả độc lập. Khi mở, chụp danh sách học sinh và nhân sự của suất; tất cả học sinh bắt đầu là **Chưa điểm danh**, không lấy trạng thái từ dữ liệu cũ.
+- Giáo viên chấm từng em **Có mặt**, **Vắng** hoặc **Bỏ đánh dấu**. Không có nút tự tính cả lớp có mặt trong luồng phiên mới. Học sinh thêm sau khi mở sẽ xuất hiện trong phiên tiếp theo; đổi tên hoặc bỏ khỏi lớp không đổi danh sách đã chốt.
+- Bấm **Đóng phiên → Xác nhận đóng phiên** để khóa sửa. Học sinh chưa chấm vẫn là Chưa điểm danh, không tự đổi thành vắng. Chỉ admin được **Mở lại phiên** để sửa. Nhân sự được chốt lúc mở hoặc admin mới được chấm/đóng phiên; người khác chỉ xem. Thay đổi được ghi nhật ký cùng giao dịch và dùng phiên bản để chặn ghi đè dữ liệu mới.
+- Giữ cả chế độ Danh sách và Phòng học 3D. Kết quả cũ theo ngày vẫn hiện riêng để đối chiếu; không tự phân bổ vào phiên vì một ngày có thể có nhiều suất. API điểm danh ngày cũ được giữ để tương thích các bản ứng dụng cũ, không ghi vào kết quả phiên mới.
+- Migration `npm run db:migrate:attendance-sessions` chỉ tạo các bảng mới, không sửa/xóa điểm danh cũ. `npm run db:migrate` cũng bao gồm migration này. Vercel chạy migration phiên trong bước build trước khi đưa bản mới lên production.
 - Sửa lịch ở mục Lớp học có trường **Áp dụng lịch và phân công từ ngày**, mặc định hôm nay. Các ngày trước mốc này giữ lịch và đội hình cũ. Phiên bản áp dụng đến trước mốc kế tiếp; bổ sung một mốc quá khứ không ghi đè các phiên bản tương lai.
-- Bộ chọn điểm danh, chấm công và lịch theo ngày tra đúng phiên bản có hiệu lực. Điểm danh hiển thị giáo viên và trợ giảng theo lịch của từng suất trong ngày đang chọn.
+- Phiên điểm danh, bộ chọn chấm công và lịch theo ngày tra đúng phiên bản lịch có hiệu lực; các phiên đã mở vẫn giữ danh sách và giờ ban đầu khi lịch lớp được sửa.
 - Lịch cả tuần và hai ảnh xuất dùng tuần hiện tại, tra phân công riêng cho từng ngày (kể cả thay đổi giữa tuần).
 - Công và đội hình thực tế đã lưu vẫn là căn cứ tính lương. Lịch mới không tự đổi công, vai trò, trạng thái xác nhận hoặc tiền lương cũ. Công thiếu đội hình cần người sở hữu mở **Sửa công** để bổ sung số giáo viên/trợ giảng thực tế.
 - Trước khi triển khai, chạy `npm run db:migrate:schedule` để tạo bảng `class_schedule_history` (chạy lại được, không sửa dữ liệu cũ). `npm run db:migrate` cũng bao gồm bảng này.
