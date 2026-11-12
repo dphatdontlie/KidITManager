@@ -1,5 +1,37 @@
 # KidIT Manager
 
+## Web Push cho iPhone và trình duyệt
+
+Backend Web Push dùng VAPID, không cần tài khoản Apple Developer. Các API `/api/push/*` yêu cầu đăng nhập, chỉ quản lý đăng ký của phiên hiện tại. Đăng xuất hoặc đổi mật khẩu xóa phiên và đăng ký liên quan. Không gửi lại thông báo sau khi phiên hết hạn; người dùng cần bật lại sau lần đăng nhập mới. Endpoint hết hạn (404/410) bị xóa khi gửi thử; lỗi tạm thời giữ đăng ký để thử lại. Gửi thử giới hạn mỗi thiết bị 30 giây/lần, TTL 60 giây. Nội dung thử không có dữ liệu học sinh hay tiền lương.
+
+Chuẩn bị server:
+
+1. Chạy `npm ci` và `npm run db:migrate:push` để tạo riêng bảng đăng ký thông báo. Lệnh chỉ thêm bảng, không sửa dữ liệu hiện có; migration tổng cũng bao gồm bảng này. Trên Vercel, `buildCommand` chạy riêng migration này trước khi build giao diện; nếu MySQL không kết nối được hoặc migration lỗi, deployment dừng và bản production trước đó vẫn được giữ. Migration có thể chạy lại an toàn và chỉ tạo các bảng Push còn thiếu, không chạy migration lương hay đổi tài khoản. `.vercelignore` cho phép gửi riêng file SQL này để Vercel CLI cũng build được.
+2. Chạy `npm run push:keys` để tạo khóa vào `.env` đã được Git bỏ qua. Script không in khóa và từ chối ghi đè khóa đang có. Giữ nguyên cặp khóa khi triển khai các bản mới.
+3. Đặt `PUSH_VAPID_SUBJECT=mailto:email-quan-tri` hoặc URL HTTPS liên hệ của trung tâm trong `.env`. Trên hosting, cấu hình `PUSH_VAPID_SUBJECT`, `PUSH_VAPID_PUBLIC_KEY`, `PUSH_VAPID_PRIVATE_KEY` và `CRON_SECRET` rồi triển khai lại. Script tạo khóa cũng tạo `CRON_SECRET` ngẫu nhiên nếu chưa có. Không thêm tiền tố `VITE_`, không gửi khóa riêng vào chat, không commit `.env`.
+4. Triển khai qua HTTPS. Server có thể gửi HTTPS ra Apple Push, FCM và Mozilla Push. Chỉ hỗ trợ endpoint của các dịch vụ trình duyệt được liệt kê trong `server/push.js` để tránh gửi tới địa chỉ mạng tùy ý.
+
+`public/sw.js` xử lý push và mở đường dẫn cùng website khi bấm thông báo. Service worker không cache trang, API, thông tin đăng nhập hoặc dữ liệu trung tâm; bản này không cung cấp chế độ offline.
+
+Sau khi triển khai, mở **Thông báo** trong menu. Trên iPhone/iPad iOS 16.4+, mở web trong Safari → Chia sẻ → Thêm vào Màn hình chính; mở icon KidIT, vào **Thông báo → Bật thông báo → Cho phép** rồi bấm **Gửi thông báo thử**. iOS yêu cầu thao tác trực tiếp để xin quyền, không tự hiện hộp thoại khi tải trang. Manifest chạy standalone; icon iOS dùng lại `public/logo.png`. Icon SVG trên trình duyệt khác là chữ KI tạm thời theo brand mark hiện tại, có thể thay bằng icon PNG vuông được duyệt sau. Không có dữ liệu được cache offline.
+
+### Nhắc trước giờ dạy
+
+Giáo viên chọn nhắc trước **5, 15 hoặc 30 phút**, mặc định 15 phút, trong trang Thông báo. Thiết lập áp dụng cho tài khoản; bật/tắt nhận áp dụng riêng cho thiết bị và phiên đăng nhập. Admin chưa liên kết giáo viên chỉ nhận được thông báo thử. Bộ nhắc dùng ngày và giờ Việt Nam, lịch có hiệu lực theo ngày và phân công từng suất; hỗ trợ cả giáo viên và trợ giảng. Tên nhân sự khớp chính xác sau khi chuẩn hóa Unicode/chữ hoa/thường; tên trùng nhiều giáo viên sẽ được bỏ qua để tránh gửi nhầm. Chưa có dữ liệu lịch nghỉ hoặc buổi ngoại lệ để tự bỏ qua; không gửi thay đổi lịch như một thông báo riêng.
+
+**Bắt buộc cấu hình tác vụ chạy mỗi phút ở server**, chọn một trong hai cách:
+
+- Server Node chạy liên tục: dùng process manager/service để chạy `npm run push:worker`. Lệnh đọc `.env`, kiểm tra lịch mỗi phút và dừng khi nhận SIGINT/SIGTERM. Có thể dùng `npm run push:worker -- --once` để chạy một lượt.
+- Hosting serverless: dịch vụ cron gọi `GET https://<domain-kidit>/api/cron/push-reminders` mỗi phút, kèm header `Authorization: Bearer <CRON_SECRET>`. Khóa tối thiểu 32 ký tự và giữ riêng. Endpoint cron không dùng cookie đăng nhập. Không cấu hình gọi tự động trong trình duyệt người dùng. Nếu dùng Vercel Pro có thể thêm `{"path":"/api/cron/push-reminders","schedule":"* * * * *"}` vào mảng `crons` trong `vercel.json`; Vercel tự gửi `CRON_SECRET` qua Authorization. Không thêm mặc định vì Vercel Hobby không hỗ trợ cron mỗi phút; cấu hình đó làm deployment Hobby thất bại. [Giới hạn cron Vercel](https://vercel.com/docs/schedules/cron-jobs/usage-and-pricing).
+
+Trang Thông báo hiện cảnh báo khi server chưa ghi nhận lượt chạy trong 3 phút gần đây. Chỉ việc lưu thời gian nhắc chưa khởi động được scheduler. Health này ghi nhận lần kiểm tra lịch gần nhất, không phải xác nhận thông báo đã đến thiết bị.
+
+Mỗi thiết bị/suất/ngày chỉ được claim một lần bằng khóa duy nhất ở database, kể cả nhiều cron chạy chồng nhau. Lỗi gửi tạm thời bỏ claim để cron sau thử lại trong cửa sổ 5 phút sau giờ nhắc; endpoint 404/410 bị xóa. Không gửi nếu đã đến giờ dạy, phiên hết hạn hoặc thiết bị đã tắt. Push được giữ tối đa đến giờ bắt đầu, lịch sử claim được dọn sau 7 ngày. Chạy lại sau khi worker bị dừng đột ngột có thể bỏ lỡ lượt đã claim; lỗi mạng sau khi dịch vụ nhận có thể tạo bản gửi lại, notification tag giúp gộp cùng suất. Web Push không bảo đảm đến đúng phút và có thể bị Tập trung/mất mạng chặn. Luôn xem lịch trong KidIT để xác nhận giờ.
+
+Nội dung nhắc trên màn hình khóa chỉ gồm tên lớp, giờ bắt đầu và phòng, không gửi tên học sinh hoặc tiền lương. Nhấn thông báo mở chi tiết lớp trên cùng website và vẫn kiểm tra đăng nhập. Bản thử trên localhost dùng fixture/mocked transport, không chứng minh giao nhận APNs; phải thử trên iPhone thật qua HTTPS trước khi đưa vào sử dụng.
+
+Tài liệu chuẩn: [Apple Web Push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers), [web-push](https://github.com/web-push-libs/web-push).
+
 ## Trợ lý điều phối AI
 
 Admin mở **Trợ lý điều phối** (`/assistant`) để hỏi lịch theo ngày, bài học từng suất, suất đã kết thúc chưa có tên bài trong công xác nhận và đề xuất buổi học bổ sung một lần. Mỗi lượt tra tối đa 31 ngày, kèm liên kết về lớp/lịch và thời điểm tra dữ liệu. Cuộc trò chuyện chỉ giữ trong trang hiện tại, không lưu vào database.

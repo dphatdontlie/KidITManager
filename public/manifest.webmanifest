@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "KidIT Manager",
+  "short_name": "KidIT",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8f5",
+  "theme_color": "#244b38",
+  "icons": [
+    { "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

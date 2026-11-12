@@ -1,4 +1,11 @@
 {
+  "buildCommand": "npm run db:migrate:push && npm run build",
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

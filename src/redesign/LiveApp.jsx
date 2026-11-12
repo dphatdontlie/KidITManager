@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useParams } from 'react-router-dom';
-import { LayoutDashboard, CalendarDays, BookOpen, Users, UserRound, ClipboardCheck, Wallet, Wrench, Settings2, Menu, X, Sun, Moon, LogOut, CheckCheck, MessagesSquare } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, BookOpen, Users, UserRound, ClipboardCheck, Wallet, Wrench, Settings2, Menu, X, Sun, Moon, LogOut, CheckCheck, MessagesSquare, Bell } from 'lucide-react';
 import { useCenter } from './center-context';
 import { Icon, Button, Avatar, EditDialog, Feedback } from './ui';
 import { Dashboard, Schedule, Classes, ClassDetail, Students, Teachers, Payroll, Finance, Accounts } from './Views';
 import { TeachingTools } from '../pages/TeachingTools';
 import { TimerIndicator } from '../components/CountdownTimer';
 
-const nav=[['/','Tổng quan',LayoutDashboard,''],['/schedule','Lịch dạy',CalendarDays,'Giảng dạy'],['/assistant','Trợ lý điều phối',MessagesSquare,''],['/classes','Lớp học',BookOpen,''],['/students','Học sinh',Users,''],['/payroll','Chấm công',ClipboardCheck,''],['/teachers','Giáo viên',UserRound,'Trung tâm'],['/finance','Học phí',Wallet,''],['/tools','Công cụ trên lớp',Wrench,''],['/accounts','Tài khoản',Settings2,'']];
+const nav=[['/','Tổng quan',LayoutDashboard,''],['/schedule','Lịch dạy',CalendarDays,'Giảng dạy'],['/assistant','Trợ lý điều phối',MessagesSquare,''],['/classes','Lớp học',BookOpen,''],['/students','Học sinh',Users,''],['/payroll','Chấm công',ClipboardCheck,''],['/teachers','Giáo viên',UserRound,'Trung tâm'],['/finance','Học phí',Wallet,''],['/tools','Công cụ trên lớp',Wrench,''],['/notifications','Thông báo',Bell,''],['/accounts','Tài khoản',Settings2,'']];
 
 function MobileMenu({children,close}){
   const ref=useRef(null);

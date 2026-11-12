@@ -1,0 +1,18 @@
+.notifications-page{max-width:840px;min-width:0}
+.notification-panel{padding:22px 18px;margin-bottom:20px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);overflow-wrap:anywhere}
+.notification-panel h2{font-size:1.12rem;margin-bottom:12px}
+.notification-panel p,.notification-panel li{line-height:1.65;font-size:.94rem}
+.notification-panel p+p{margin-top:12px}
+.push-status{font-weight:600}
+.push-help ol{padding-left:22px;margin:12px 0}
+.push-help li+li{margin-top:8px}
+.push-actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+.push-actions .button,.push-preferences .button{min-height:44px;white-space:normal}
+.notification-panel .push-detail{font-size:.86rem;color:var(--muted);margin-top:16px}
+.push-feedback{min-height:1.65em;margin-top:12px}
+.push-preferences{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-top:18px}
+.push-preferences label{display:grid;gap:7px;flex:1 1 180px;font-size:.9rem;font-weight:600}
+.push-preferences select{min-height:44px;border:1px solid var(--control);border-radius:6px;padding:10px 12px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer;min-width:0;width:100%}
+.notifications-page :is(button,select):focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+@media(min-width:600px){.notification-panel{padding:26px}}
+@media(max-width:400px){.push-actions .button,.push-preferences .button{width:100%}}

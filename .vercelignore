@@ -1,5 +1,6 @@
 *.db
 *.sql
+!migrations/012-push-subscriptions.sql
 *.zip
 sqlite/
 backend/

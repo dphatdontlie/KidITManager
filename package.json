@@ -7,6 +7,9 @@
     "dev": "vite",
     "dev:api": "node --env-file-if-exists=.env api/index.js",
     "db:migrate": "node scripts/migrate.js",
+    "db:migrate:push": "node scripts/migrate-push.js",
+    "push:keys": "node scripts/push-keys.js",
+    "push:worker": "node --env-file-if-exists=.env scripts/push-worker.js",
     "db:migrate:quiz": "node scripts/migrate-quiz.js",
     "db:migrate:payroll": "node scripts/migrate-payroll.js",
     "db:migrate:schedule": "node scripts/migrate-schedule-history.js",
@@ -27,7 +30,8 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.4",
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

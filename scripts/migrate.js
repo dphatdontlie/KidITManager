@@ -11,6 +11,8 @@ try {
     for (const statement of sql.split(';').map(s => s.trim()).filter(Boolean)) await db.query(statement);
   }
   await freezeExistingPayroll(db);
+  const pushSql = await readFile(new URL('../migrations/012-push-subscriptions.sql', import.meta.url), 'utf8');
+  for (const statement of pushSql.split(';').map(s => s.trim()).filter(Boolean)) await db.query(statement);
   await db.beginTransaction();
   try {
     const [[admin]] = await db.query("SELECT id FROM accounts WHERE account_role='admin' ORDER BY id LIMIT 1 FOR UPDATE");
