@@ -66,6 +66,15 @@ test('dead endpoints are removed and do not retry', async t => {
   assert.equal((await runPushReminders(f.pool, f.options)).failed, 1);
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get().n, 0);
 });
+test('a slow batch leaves jobs unclaimed so the next minute can process them', async t => {
+  const f = setup(t);
+  let calls = 0;
+  const report = await runPushReminders(f.pool, { ...f.options, now: () => calls++ === 0 ? now : now + 18000 });
+  assert.equal(report.sent, 0);
+  assert.equal(report.pending, 1);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM push_deliveries').get().n, 0);
+  assert.equal((await runPushReminders(f.pool, f.options)).sent, 1);
+});
 test('preferences are account-scoped, validated, and administrators without teacher links cannot set reminders', async t => {
   const f = setup(t);
   const server = f.app.listen(0, '127.0.0.1');

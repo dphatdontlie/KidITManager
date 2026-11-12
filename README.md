@@ -26,6 +26,8 @@ Giáo viên chọn nhắc trước **5, 15 hoặc 30 phút**, mặc định 15 p
 
 Trang Thông báo hiện cảnh báo khi server chưa ghi nhận lượt chạy trong 3 phút gần đây. Chỉ việc lưu thời gian nhắc chưa khởi động được scheduler. Health này ghi nhận lần kiểm tra lịch gần nhất, không phải xác nhận thông báo đã đến thiết bị.
 
+Production dùng cron-job.org gọi URL nhắc giờ mỗi phút, phương thức GET, header Authorization dùng `CRON_SECRET`, không lưu nội dung phản hồi. Không cần API key cron-job.org trong app hoặc nâng gói Vercel. Mỗi lượt bắt đầu xử lý trong ngân sách 18 giây, timeout gửi Push 5 giây để phù hợp giới hạn HTTP 30 giây của job miễn phí; phần chưa xử lý được giữ cho lượt sau. Nếu thay khóa cron trên hosting, phải cập nhật header của job cùng lúc.
+
 Mỗi thiết bị/suất/ngày chỉ được claim một lần bằng khóa duy nhất ở database, kể cả nhiều cron chạy chồng nhau. Lỗi gửi tạm thời bỏ claim để cron sau thử lại trong cửa sổ 5 phút sau giờ nhắc; endpoint 404/410 bị xóa. Không gửi nếu đã đến giờ dạy, phiên hết hạn hoặc thiết bị đã tắt. Push được giữ tối đa đến giờ bắt đầu, lịch sử claim được dọn sau 7 ngày. Chạy lại sau khi worker bị dừng đột ngột có thể bỏ lỡ lượt đã claim; lỗi mạng sau khi dịch vụ nhận có thể tạo bản gửi lại, notification tag giúp gộp cùng suất. Web Push không bảo đảm đến đúng phút và có thể bị Tập trung/mất mạng chặn. Luôn xem lịch trong KidIT để xác nhận giờ.
 
 Nội dung nhắc trên màn hình khóa chỉ gồm tên lớp, giờ bắt đầu và phòng, không gửi tên học sinh hoặc tiền lương. Nhấn thông báo mở chi tiết lớp trên cùng website và vẫn kiểm tra đăng nhập. Bản thử trên localhost dùng fixture/mocked transport, không chứng minh giao nhận APNs; phải thử trên iPhone thật qua HTTPS trước khi đưa vào sử dụng.

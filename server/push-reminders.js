@@ -62,7 +62,9 @@ export async function runPushReminders(pool, { env = process.env, now = Date.now
   const result = { sent: 0, failed: 0, skipped: 0 };
   let cursor = 0;
   const worker = async () => {
-    while (cursor < jobs.length && now() - instant < 40000) {
+    // cron-job.org's free tier stops an HTTP request after 30 seconds.
+    // Leave room for the last in-flight sends and database bookkeeping.
+    while (cursor < jobs.length && now() - instant < 18000) {
       const job = jobs[cursor++];
       if (job.start <= now()) { result.skipped++; continue; }
       const [claim] = await db.query('INSERT IGNORE INTO push_deliveries (endpoint_hash,event_key) VALUES (?,?)', [job.endpoint_hash, job.eventKey]);
@@ -73,7 +75,7 @@ export async function runPushReminders(pool, { env = process.env, now = Date.now
           WHERE p.endpoint_hash=? AND p.account_id=? AND p.session_hash=? AND s.expires_at>CURRENT_TIMESTAMP`, [job.endpoint_hash, job.account_id, job.session_hash]);
         if (!active) { result.skipped++; continue; }
         await send(validateSubscription(JSON.parse(job.subscription)), JSON.stringify(job.payload), {
-          vapidDetails: config, TTL: Math.max(1, Math.floor((job.start - now()) / 1000)), timeout: 8000,
+          vapidDetails: config, TTL: Math.max(1, Math.floor((job.start - now()) / 1000)), timeout: 5000,
         });
         result.sent++;
       } catch (error) {
