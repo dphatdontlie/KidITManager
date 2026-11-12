@@ -4,6 +4,17 @@ Design read: continue the existing KidIT green palette, type, buttons and light/
 
 Delivery verification is scoped to the new notification page, PWA metadata, worker and server reminder flow. Existing unrelated screens are outside this change.
 
+## Follow-up: alternate deployment and iPhone input zoom
+
+The repository is connected to both `kid-it-manager` and `kid-it-manager-8k8k`. The second project's production environment lacked the four Push variables, reproducing `configured:false`; the primary project returned `configured:true`. The missing values were provisioned as production secrets on the second project. Both projects share the existing database and VAPID configuration, so the existing single reminder job can process registered devices from either site.
+
+Mobile/coarse-pointer form controls now use a minimum 16px font to address iOS focus zoom. The existing large numeric Quiz join field is excluded. The viewport still permits user zoom. A configuration retry button lets an open notification screen re-check server readiness.
+
+- Hard gate PASS: build/lint and fixture click-through passed; retry changed the disabled/unconfigured screen into an enabled button, then registration succeeded. Login text/password, month, selects, text and textarea measured 16px at phone widths; no horizontal overflow at 320/390px. Actual iPhone keyboard/zoom behavior still needs device confirmation.
+- Purpose gate PASS: the only style adjustment makes form text readable at the iOS focus threshold; no new colors, icons, media, or motion.
+- Liveliness PASS: inherited KidIT forms and 1/1/1 dials retained; the numeric Quiz field remained 28px while the name field measured 16px.
+- Craftsmanship PASS: standard viewport zoom retained; fixture form was closed without saving data; screenshot saved to `outputs/mobile-input-fix.png`; temporary viewport override reset.
+
 ## Automated checks
 
 - Subscription API: authentication, owner/session isolation, invalid endpoints and keys, rate limit, logout cleanup, expired endpoints and transient failures.

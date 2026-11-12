@@ -53,7 +53,7 @@ export default function Notifications() {
             : loading ? <p role="status">Đang kiểm tra cài đặt thông báo...</p> : <>
               <p className="push-status">{subscribed ? 'Đang bật cho phiên đăng nhập này.' : 'Chưa bật cho phiên đăng nhập này.'}</p>
               {denied && <p>Bạn đã chặn thông báo. Trên iPhone, vào Cài đặt → Thông báo → KidIT để cho phép, rồi mở lại trang này. Với trình duyệt khác, kiểm tra quyền thông báo của website.</p>}
-              {state && !state.config.configured && <p>Máy chủ chưa cấu hình thông báo. Vui lòng liên hệ quản trị viên để bật dịch vụ.</p>}
+              {state && !state.config.configured && <><p>Máy chủ chưa cấu hình thông báo. Vui lòng liên hệ quản trị viên để bật dịch vụ.</p><Button variant="secondary" disabled={busy || loading} onClick={() => setReload(n => n + 1)}>Kiểm tra cấu hình lại</Button></>}
               {state && <div className="push-actions">
                 {!subscribed && <Button onClick={enable} disabled={busy || denied || !state.config.configured}>Bật thông báo</Button>}
                 {subscribed && <Button disabled={busy || !state.config.configured} onClick={() => action(async () => {
