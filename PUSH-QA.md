@@ -26,6 +26,8 @@ Design read: keep KidIT's existing forms, green accent and light/dark themes (EN
 - Liveliness PASS: 1/1/1 inherited; clear session state and action lead the view; whitespace separates the slot list, session state, counts and roster.
 - Craftsmanship PASS: existing daily attendance remains separate for reference, payroll is untouched, changes use transactional audit and version checks. Closed entries cannot be changed until an admin reopens. Browser checks use fixture data and a fixed lesson clock, not real student records. Screenshots: `outputs/attendance-session.png`, `outputs/admin-notifications.png`. Actual 09:00 push delivery and iPhone notification receipt require the normal scheduled run on an opted-in device.
 
+Enrollment management remains available in a separate expandable current-roster section. Fixture click-through removed one enrollment using the existing confirmation dialog: the live roster changed from two students to one while the opened session retained both original pending entries. No real enrollment was changed during verification.
+
 - Subscription API: authentication, owner/session isolation, invalid endpoints and keys, rate limit, logout cleanup, expired endpoints and transient failures.
 - Reminder runner: Vietnam dates, midnight crossing, reminder window, lead time, historic/per-slot staff, ambiguous names, overlapping calls, expired sessions, retries and dead endpoints.
 - Worker: malformed payload still displays a notification; navigation restricted to the same origin; no fetch cache of private data.

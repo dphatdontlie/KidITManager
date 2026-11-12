@@ -76,6 +76,7 @@ export default function AttendanceSessions({ cls, date, onDateChange }) {
       </> : !!data.slots.length && <p className="inset">Chọn Mở điểm danh khi bắt đầu suất học để tạo phiên.</p>}
       {!!data.legacy.length && <details className="historic-records"><summary>Điểm danh cũ theo ngày ({data.legacy.length} học sinh)</summary><p>Dữ liệu cũ được giữ riêng để đối chiếu, chưa gán vào phiên vì một ngày có thể có nhiều suất.</p>{data.legacy.map(e => <p key={e.student_id}>{e.student_name || `HS${e.student_id}`} · {e.status === 'present' ? 'Có mặt' : 'Vắng'}</p>)}</details>}
     </>}
+    <details className="historic-records"><summary>Quản lý học sinh hiện tại của lớp ({d.roster(cls.id).length})</summary><p>Thêm hoặc bỏ học sinh khỏi lớp không thay đổi danh sách của phiên đã mở.</p>{d.roster(cls.id).map(student => <div className="session-current-student" key={student.id}><span>{student.name}</span><Button variant="ghost small" disabled={busy} onClick={() => d.removeStudent(cls.id, student)}>Bỏ khỏi lớp</Button></div>)}</details>
     <div className="panel-foot"><span>Học sinh thêm vào lớp sau khi mở phiên sẽ có trong phiên tiếp theo.</span><Button variant="ghost small" disabled={busy} onClick={() => d.enrollEditor(cls.id)}>Thêm học sinh vào lớp</Button><Button variant="ghost small" disabled={busy} onClick={() => d.studentEditor()}>Tạo hồ sơ mới</Button></div>
   </section>;
 }
