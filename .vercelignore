@@ -2,6 +2,7 @@
 *.sql
 !migrations/012-push-subscriptions.sql
 !migrations/013-student-attendance-sessions.sql
+!migrations/014-staff-presence.sql
 *.zip
 sqlite/
 backend/

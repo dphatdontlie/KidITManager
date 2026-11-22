@@ -89,10 +89,9 @@ export default function MonthlySchedule({ month, onMonthChange, classes, person,
             aria-label={`${weekdayLabel(day.date)}, ${dateLabel(day.date)}, ${day.blocks.length} suất`} onClick={() => setSelected(day.date)}>
             <span className="month-date-number">{Number(day.date.slice(8))}</span>
             <span className="month-events" aria-hidden="true">
-              {day.blocks.slice(0, 3).map(entry => <span className="month-event" key={entry.id}>
+              {day.blocks.map(entry => <span className="month-event" key={entry.id}>
                 <time>{entry.timeKey.split('-')[0]}</time><span>{entry.className}</span>
               </span>)}
-              {day.blocks.length > 3 && <span className="month-more">+{day.blocks.length - 3}</span>}
             </span>
           </button> : <span className="month-date-number" aria-hidden="true">{day.date && Number(day.date.slice(8))}</span>}
         </td>)}

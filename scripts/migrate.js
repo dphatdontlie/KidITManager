@@ -15,6 +15,8 @@ try {
   for (const statement of pushSql.split(';').map(s => s.trim()).filter(Boolean)) await db.query(statement);
   const attendanceSql = await readFile(new URL('../migrations/013-student-attendance-sessions.sql', import.meta.url), 'utf8');
   for (const statement of attendanceSql.split(';').map(s => s.trim()).filter(Boolean)) await db.query(statement);
+  const presenceSql = await readFile(new URL('../migrations/014-staff-presence.sql', import.meta.url), 'utf8');
+  await db.query(presenceSql);
   await db.beginTransaction();
   try {
     const [[admin]] = await db.query("SELECT id FROM accounts WHERE account_role='admin' ORDER BY id LIMIT 1 FOR UPDATE");

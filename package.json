@@ -9,6 +9,7 @@
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:push": "node scripts/migrate-push.js",
     "db:migrate:attendance-sessions": "node scripts/migrate-attendance-sessions.js",
+    "db:migrate:presence": "node scripts/migrate-presence.js",
     "push:keys": "node scripts/push-keys.js",
     "push:worker": "node --env-file-if-exists=.env scripts/push-worker.js",
     "db:migrate:quiz": "node scripts/migrate-quiz.js",

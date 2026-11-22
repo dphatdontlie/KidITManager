@@ -4,6 +4,7 @@ import { registerClasses } from '../server/classes.js';
 import { registerTeachingSessions } from '../server/teaching-sessions.js';
 import { registerStudentAttendance } from '../server/student-attendance.js';
 import { registerAccounts, hashPassword } from '../server/accounts.js';
+import { registerStaffPresence } from '../server/staff-presence.js';
 import { registerPersonalAttendance } from '../server/personal-attendance.js';
 import { registerClassNotes } from '../server/class-notes.js';
 import { registerPayrollBonuses } from '../server/payroll-bonuses.js';
@@ -16,7 +17,7 @@ import { registerPush } from '../server/push.js';
 import { registerPushCron } from '../server/push-reminders.js';
 import { registerAttendanceSessions } from '../server/attendance-sessions.js';
 
-export function createFixture({ auth = false, quizNow = Date.now, assistant = {}, push = {}, attendance = {} } = {}) {
+export function createFixture({ auth = false, quizNow = Date.now, assistant = {}, push = {}, attendance = {}, presence = {} } = {}) {
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(`
     PRAGMA foreign_keys=ON;
@@ -35,6 +36,7 @@ export function createFixture({ auth = false, quizNow = Date.now, assistant = {}
     CREATE TABLE teacher_attendance (id INTEGER PRIMARY KEY, class_id INTEGER, teacher_name TEXT, role TEXT, date TEXT, status TEXT);
     CREATE TABLE accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password_hash TEXT, account_role TEXT, teacher_id INTEGER UNIQUE REFERENCES teachers(id) ON DELETE CASCADE);
     CREATE TABLE account_sessions (token_hash TEXT PRIMARY KEY, account_id INTEGER REFERENCES accounts(id) ON DELETE CASCADE, expires_at TEXT);
+    CREATE TABLE staff_presence (session_hash TEXT PRIMARY KEY REFERENCES account_sessions(token_hash) ON DELETE CASCADE, active_until INTEGER NOT NULL);
     CREATE TABLE student_attendance_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT,class_id INTEGER REFERENCES classes(id),date TEXT,start_time TEXT,end_time TEXT,state TEXT DEFAULT 'open',opened_by INTEGER REFERENCES accounts(id) ON DELETE SET NULL,opened_name TEXT,opened_at TEXT DEFAULT CURRENT_TIMESTAMP,closed_at TEXT,version INTEGER DEFAULT 1,UNIQUE(class_id,date,start_time));
     CREATE TABLE student_attendance_session_staff (session_id INTEGER REFERENCES student_attendance_sessions(id) ON DELETE CASCADE,account_id INTEGER REFERENCES accounts(id) ON DELETE CASCADE,PRIMARY KEY(session_id,account_id));
     CREATE TABLE student_attendance_entries (id INTEGER PRIMARY KEY AUTOINCREMENT,session_id INTEGER REFERENCES student_attendance_sessions(id) ON DELETE CASCADE,student_id INTEGER,student_name TEXT,status TEXT DEFAULT 'pending',marked_by TEXT,marked_at TEXT,version INTEGER DEFAULT 1,UNIQUE(session_id,student_id));
@@ -70,6 +72,7 @@ export function createFixture({ auth = false, quizNow = Date.now, assistant = {}
         .replace('ON DUPLICATE KEY UPDATE account_id=VALUES(account_id),session_hash=VALUES(session_hash),subscription=VALUES(subscription),updated_at=CURRENT_TIMESTAMP', 'ON CONFLICT(endpoint_hash) DO UPDATE SET account_id=excluded.account_id,session_hash=excluded.session_hash,subscription=excluded.subscription,updated_at=CURRENT_TIMESTAMP')
         .replace('ON DUPLICATE KEY UPDATE lead_minutes=VALUES(lead_minutes)', 'ON CONFLICT(account_id) DO UPDATE SET lead_minutes=excluded.lead_minutes')
         .replace('ON DUPLICATE KEY UPDATE last_run_at=CURRENT_TIMESTAMP', 'ON CONFLICT(id) DO UPDATE SET last_run_at=CURRENT_TIMESTAMP')
+        .replace('ON DUPLICATE KEY UPDATE active_until=GREATEST(active_until,VALUES(active_until))', 'ON CONFLICT(session_hash) DO UPDATE SET active_until=MAX(active_until,excluded.active_until)')
         .replace('INSERT IGNORE INTO', 'INSERT OR IGNORE INTO')
         .replace(/DATE_SUB\(CURRENT_TIMESTAMP, INTERVAL (\d+) (SECOND|MINUTE|DAY)\)/g, (_, n, unit) => `datetime(CURRENT_TIMESTAMP, '-${n} ${unit.toLowerCase()}s')`));
       if (/^SELECT/i.test(sql.trim())) return [statement.all(...params)];
@@ -91,6 +94,7 @@ export function createFixture({ auth = false, quizNow = Date.now, assistant = {}
       sqlite.prepare('INSERT INTO accounts (username,password_hash,account_role,teacher_id) VALUES (?,?,?,?)').run(username, hashPassword(role === 'admin' ? 'admin' : 'kidit'), role, teacher);
     }
     registerAccounts(app, pool);
+    registerStaffPresence(app, pool, presence);
     registerAttendanceSessions(app, pool, attendance);
     registerPush(app, pool, push);
     registerPersonalAttendance(app, pool);

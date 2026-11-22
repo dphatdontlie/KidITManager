@@ -60,7 +60,6 @@
 }
 .month-event span { overflow: hidden; text-overflow: ellipsis; }
 .month-event time { font-size: 11px; font-variant-numeric: tabular-nums; }
-.month-more { color: var(--muted); font-size: 12px; text-align: left; padding-left: 4px; }
 .month-day-lessons { padding: 0 16px; margin: 0; list-style: none; }
 .month-day-lessons li + li { border-top: 1px solid var(--line); }
 .month-day-lessons a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px 10px; padding: 12px 8px; min-height: 56px; }
@@ -80,7 +79,6 @@
   .month-day { padding: 4px 2px 6px; min-height: 110px; }
   .month-date-number { width: 27px; height: 27px; font-size: 16px; margin-bottom: 4px; }
   .month-event { font-size: 11px; padding: 2px; }
-  .month-more { padding-left: 2px; }
   .month-day-lessons a { grid-template-columns: auto minmax(0, 1fr) auto; }
   .month-day-lessons a span { grid-column: 2; grid-row: 2; font-size: 14px; }
   .month-day-lessons a small { grid-row: 3; }
