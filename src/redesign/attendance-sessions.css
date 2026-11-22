@@ -1,4 +1,6 @@
 .session-toolbar,.session-close-confirm{display:flex;flex-wrap:wrap;gap:10px;padding:16px 20px}
+.session-save-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 20px;background:var(--surface);border-block:1px solid var(--line)}
+.session-save-bar p{flex:1;min-width:180px;font-size:.87rem;line-height:1.6}.session-save-bar>div{display:flex;flex-wrap:wrap;gap:8px}.session-save-bar .button{min-height:44px}
 .session-slots{display:grid;gap:10px;padding:0 20px}
 .session-slot,.session-state{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:16px;border:1px solid var(--line);border-radius:8px}
 .session-slot small,.session-student small{display:block;color:var(--muted);margin-top:6px}

@@ -104,6 +104,30 @@ export function registerAttendanceSessions(app, pool, { now = Date.now } = {}) {
       await connection.commit(); res.json({ success: true });
     } catch (error) { if (connection) await connection.rollback(); next(error); } finally { connection?.release(); }
   };
+  app.post(`${base}/:sessionId/students/bulk`, mutate(async (connection, req, session) => {
+    if (session.state !== 'open') throw new InputError('Phiên đã đóng. Admin cần mở lại trước khi sửa.', 409);
+    const changes = req.body?.entries;
+    if (!Array.isArray(changes) || !changes.length) throw new InputError('Chọn học sinh cần lưu điểm danh.');
+    const [entries] = await connection.query('SELECT * FROM student_attendance_entries WHERE session_id=?', [session.id]);
+    if (changes.length > entries.length) throw new InputError('Danh sách điểm danh không hợp lệ.');
+    const seen = new Set();
+    for (const change of changes) {
+      if (!change || !Number.isInteger(change.student_id) || seen.has(change.student_id) || !['present', 'absent', 'pending'].includes(change.status)) {
+        throw new InputError('Danh sách hoặc trạng thái điểm danh không hợp lệ.');
+      }
+      seen.add(change.student_id);
+      const entry = entries.find(e => e.student_id === change.student_id);
+      if (!entry) throw new InputError('Học sinh không có trong danh sách chụp lúc mở phiên.', 404);
+      checkVersion(change.version, entry.version);
+    }
+    const markedAt = new Date(now());
+    for (const change of changes) {
+      const entry = entries.find(e => e.student_id === change.student_id);
+      if (entry.status === change.status) continue;
+      await connection.query('UPDATE student_attendance_entries SET status=?,marked_by=?,marked_at=?,version=version+1 WHERE id=?', [change.status, req.user.name, change.status === 'pending' ? null : markedAt, entry.id]);
+      await audit(connection, req, session.id, 'mark', { before: entry.status, after: change.status }, entry.student_id);
+    }
+  }));
   app.post(`${base}/:sessionId/students/:studentId`, mutate(async (connection, req, session) => {
     if (session.state !== 'open') throw new InputError('Phiên đã đóng. Admin cần mở lại trước khi sửa.', 409);
     const status = req.body?.status;

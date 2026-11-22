@@ -92,3 +92,45 @@ test('opening and marking roll back when audit persistence fails', async t => {
   assert.equal((await f.request(`${f.day}/${id}/students/1`, { status: 'present', version: 1 }, c)).status, 500);
   assert.equal((await f.get(c)).data.sessions[0].entries[0].status, 'pending');
 });
+
+test('bulk attendance saves a complete batch and rejects stale or invalid batches atomically', async t => {
+  const f = await serve(t); const c = await f.login('gv1');
+  const id = (await f.open(c)).data.id;
+  const save = entries => f.request(`${f.day}/${id}/students/bulk`, { entries }, c);
+  const change = (student_id, status, version = 1) => ({ student_id, status, version });
+  assert.equal((await save([change(1, 'present'), change(2, 'absent')])).status, 200);
+  let entries = (await f.get(c)).data.sessions[0].entries;
+  assert.deepEqual(entries.map(e => [e.status, e.version]), [['present', 2], ['absent', 2]]);
+  const auditCount = () => f.sqlite.prepare('SELECT COUNT(*) AS n FROM student_attendance_actions').get().n;
+  assert.equal(auditCount(), 3);
+  assert.equal((await save([change(1, 'absent', 2), change(2, 'present')])).status, 409);
+  assert.equal((await save([change(1, 'absent', 2), change(99, 'present')])).status, 404);
+  assert.equal((await save([change(1, 'absent', 2), change(2, 'bad', 2)])).status, 400);
+  assert.equal((await save([change(1, 'absent', 2), change(1, 'pending', 2)])).status, 400);
+  assert.equal((await save([])).status, 400);
+  assert.equal((await save([null])).status, 400);
+  entries = (await f.get(c)).data.sessions[0].entries;
+  assert.deepEqual(entries.map(e => [e.status, e.version]), [['present', 2], ['absent', 2]]);
+  assert.equal(auditCount(), 3);
+  f.sqlite.exec("CREATE TRIGGER fail_second_mark BEFORE INSERT ON student_attendance_actions WHEN NEW.student_id=2 BEGIN SELECT RAISE(ABORT,'audit failure'); END");
+  assert.equal((await save([change(1, 'absent', 2), change(2, 'pending', 2)])).status, 500);
+  assert.deepEqual((await f.get(c)).data.sessions[0].entries.map(e => e.status), ['present', 'absent']);
+  assert.equal(auditCount(), 3);
+  f.sqlite.exec('DROP TRIGGER fail_second_mark');
+  assert.equal((await save([change(1, 'pending', 2), change(2, 'present', 2)])).status, 200);
+  entries = (await f.get(c)).data.sessions[0].entries;
+  assert.equal(entries[0].marked_at, null);
+  assert.equal(entries[1].marked_by, 'GV kiểm thử A');
+  await f.request(`${f.day}/${id}/close`, { version: 1 }, c);
+  assert.equal((await save([change(1, 'present', 3)])).status, 409);
+});
+
+test('bulk attendance requires login and assigned staff or admin', async t => {
+  const f = await serve(t); const c = await f.login('gv1');
+  const id = (await f.open(c)).data.id;
+  f.sqlite.exec("INSERT INTO accounts (username,password_hash,account_role,teacher_id) SELECT 'gv3',password_hash,'teacher',3 FROM accounts WHERE username='gv1'");
+  const body = { entries: [{ student_id: 1, status: 'present', version: 1 }] };
+  assert.equal((await f.request(`${f.day}/${id}/students/bulk`, body)).status, 401);
+  assert.equal((await f.request(`${f.day}/${id}/students/bulk`, body, await f.login('gv3'))).status, 403);
+  assert.equal((await f.request(`${f.day}/${id}/students/bulk`, body, await f.login('admin'))).status, 200);
+});

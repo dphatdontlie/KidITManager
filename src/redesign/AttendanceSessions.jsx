@@ -18,6 +18,9 @@ export default function AttendanceSessions({ cls, date, onDateChange }) {
   const [loadError, setLoadError] = useState('');
   const [reload, setReload] = useState(0);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [drafts, setDrafts] = useViewState(`class-${cls.id}-attendance-drafts`, {});
+  const [savedMessage, setSavedMessage] = useState('');
+  const hasDrafts = Object.values(drafts).some(rows => Object.keys(rows).length);
   const [view, setView] = useViewState(`class-${cls.id}-view`, 'list');
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setLoadError('');
@@ -29,14 +32,22 @@ export default function AttendanceSessions({ cls, date, onDateChange }) {
   }, [cls.id, date, reload]);
   useEffect(() => { setError(''); setConfirmClose(false); }, [cls.id, date]);
   useEffect(() => {
-    if (busy) return;
+    if (busy || hasDrafts) return;
     const timer = setInterval(() => { if (document.visibilityState === 'visible') setReload(n => n + 1); }, 30000);
     return () => clearInterval(timer);
-  }, [busy]);
+  }, [busy, hasDrafts]);
+  useEffect(() => {
+    if (!hasDrafts) return;
+    const warn = event => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasDrafts]);
   const ready = loadedDate === date && !!data;
   const sessions = ready ? data.sessions : [];
   const session = sessions.find(s => s.id === selected) || sessions.find(s => s.state === 'open') || sessions.at(-1);
-  const entries = session?.entries || [];
+  const draft = drafts[session?.id] || {};
+  const changes = Object.values(draft);
+  const entries = (session?.entries || []).map(entry => draft[entry.student_id] ? { ...entry, status: draft[entry.student_id].status, marked_by: 'Chưa lưu' } : entry);
   const count = status => entries.filter(e => e.status === status).length;
   const editable = !!session?.can_manage && session.state === 'open' && !busy && !loading && ready;
   const act = async fn => {
@@ -45,16 +56,41 @@ export default function AttendanceSessions({ cls, date, onDateChange }) {
     catch (err) { setError(err.message); if (err.status === 409) setReload(n => n + 1); }
     finally { setBusy(false); }
   };
-  const mark = (studentId, status) => act(async () => {
-    const entry = entries.find(e => e.student_id === studentId);
-    await api(`/api/classes/${cls.id}/attendance-sessions/${session.id}/students/${studentId}`, jsonBody({ status, version: entry.version }));
-  });
+  const mark = (studentId, status) => {
+    if (!editable) return;
+    const entry = session.entries.find(e => e.student_id === studentId);
+    setError(''); setSavedMessage(''); setConfirmClose(false);
+    setDrafts(current => {
+      const rows = { ...current[session.id] };
+      const original = rows[studentId] || { student_id: studentId, version: entry.version, originalStatus: entry.status };
+      if (status === original.originalStatus) delete rows[studentId];
+      else rows[studentId] = { ...original, status };
+      return { ...current, [session.id]: rows };
+    });
+  };
+  const discard = () => {
+    setDrafts(current => { const next = { ...current }; delete next[session.id]; return next; });
+    setError(''); setSavedMessage(''); setReload(n => n + 1);
+  };
+  const save = async () => {
+    if (!editable || !changes.length) return;
+    setBusy(true); setError(''); setSavedMessage('');
+    try {
+      await api(`/api/classes/${cls.id}/attendance-sessions/${session.id}/students/bulk`, jsonBody({ entries: changes.map(({ student_id, status, version }) => ({ student_id, status, version })) }));
+      setDrafts(current => { const next = { ...current }; delete next[session.id]; return next; });
+      setLoadedDate(''); setReload(n => n + 1);
+      setSavedMessage(`Đã lưu điểm danh cho ${changes.length} học sinh.`);
+    } catch (err) {
+      setError(err.status === 409 ? `${err.message} Lựa chọn của bạn vẫn được giữ. Bấm Hủy thay đổi để tải kết quả mới nhất trước khi chọn lại.` : `${err.message} Lựa chọn của bạn vẫn được giữ, hãy thử lưu lại.`);
+    } finally { setBusy(false); }
+  };
   return <section className="panel attendance-sessions">
-    <PanelHead title="Phiên điểm danh học sinh" caption="Mỗi suất học có một phiên và danh sách học sinh riêng.">
+    <PanelHead title="Phiên điểm danh học sinh" caption="Chọn trạng thái cho các học sinh, sau đó bấm Lưu điểm danh một lần cho cả lượt.">
       <DateFields label="Ngày phiên điểm danh" value={date} disabled={busy} onChange={value => { setSelected(null); onDateChange(value); }}/>
     </PanelHead>
     <div className="session-toolbar"><Button variant="secondary" disabled={busy} onClick={() => { setSelected(null); onDateChange(localDate()); setReload(n => n + 1); }}>Hôm nay</Button><Button variant="ghost" disabled={busy || loading} onClick={() => { setError(''); setReload(n => n + 1); }}>Tải lại phiên</Button></div>
     <Feedback error={error || loadError}/>
+    {savedMessage && <p className="inset" role="status">{savedMessage}</p>}
     {loading && <p className="inset" role="status">Đang tải các phiên điểm danh...</p>}
     {ready && <>
       <div className="session-slots" aria-label="Suất học trong ngày">{data.slots.map(slot => {
@@ -67,9 +103,10 @@ export default function AttendanceSessions({ cls, date, onDateChange }) {
       {!data.slots.length && !sessions.length && <Empty title="Ngày này chưa có suất học" text="Chọn ngày có lịch hoặc cập nhật lịch của lớp."/>}
       {!!sessions.length && <label className="session-chooser">Phiên cần xem<select aria-label="Chọn phiên điểm danh" value={session?.id || ''} disabled={busy} onChange={e => { setSelected(Number(e.target.value)); setConfirmClose(false); }}>{sessions.map(s => <option key={s.id} value={s.id}>{s.start_time} - {s.end_time} · {s.state === 'open' ? 'Đang mở' : 'Đã đóng'}</option>)}</select></label>}
       {session ? <>
-        <div className="session-state"><div><h3>{session.start_time} - {session.end_time} · {session.state === 'open' ? 'Đang mở điểm danh' : 'Đã đóng phiên'}</h3><p>Người mở: {session.opened_name}. Danh sách chốt tại thời điểm mở phiên.</p></div>{session.state === 'open' && session.can_manage && <Button variant="secondary" disabled={busy || loading} onClick={() => setConfirmClose(true)}>Đóng phiên</Button>}{session.state === 'closed' && session.can_reopen && <Button variant="secondary" disabled={busy || loading} onClick={() => act(() => api(`/api/classes/${cls.id}/attendance-sessions/${session.id}/reopen`, jsonBody({ version: session.version })))}>Mở lại phiên</Button>}</div>
+        <div className="session-state"><div><h3>{session.start_time} - {session.end_time} · {session.state === 'open' ? 'Đang mở điểm danh' : 'Đã đóng phiên'}</h3><p>Người mở: {session.opened_name}. Danh sách chốt tại thời điểm mở phiên.</p></div>{session.state === 'open' && session.can_manage && <Button variant="secondary" disabled={busy || loading || !!changes.length} onClick={() => setConfirmClose(true)}>Đóng phiên</Button>}{session.state === 'closed' && session.can_reopen && <Button variant="secondary" disabled={busy || loading} onClick={() => act(() => api(`/api/classes/${cls.id}/attendance-sessions/${session.id}/reopen`, jsonBody({ version: session.version })))}>Mở lại phiên</Button>}</div>
         {confirmClose && <div className="session-close-confirm"><p>{count('pending') ? `Còn ${count('pending')} học sinh chưa điểm danh. Đóng phiên vẫn giữ nguyên trạng thái này.` : 'Đóng phiên sẽ khóa việc sửa điểm danh. Admin có thể mở lại khi cần.'}</p><Button disabled={busy || loading} onClick={() => act(() => api(`/api/classes/${cls.id}/attendance-sessions/${session.id}/close`, jsonBody({ version: session.version })))}>Xác nhận đóng phiên</Button><Button variant="secondary" disabled={busy} onClick={() => setConfirmClose(false)}>Tiếp tục điểm danh</Button></div>}
         <div className="attendance-summary" aria-live="polite"><span><strong>{count('present')}</strong> có mặt</span><span><strong>{count('absent')}</strong> vắng</span><span><strong>{count('pending')}</strong> chưa điểm danh</span></div>
+        {(session.can_manage || !!changes.length) && <div className="session-save-bar"><p role="status">{changes.length ? `${changes.length} học sinh có thay đổi chưa lưu. Lưu trước khi đóng phiên.` : 'Chọn Có mặt hoặc Vắng cho từng học sinh, rồi lưu cả lượt.'}</p><div><Button variant="secondary" disabled={busy || !changes.length} onClick={discard}>Hủy thay đổi</Button><Button disabled={!editable || !changes.length} onClick={save}>{busy ? 'Đang lưu...' : 'Lưu điểm danh'}</Button></div></div>}
         {!session.can_manage && <p className="inset muted">Bạn đang xem kết quả. Chỉ nhân sự của phiên hoặc admin được chấm và đóng phiên.</p>}
         <div className="attendance-view-controls"><div className="segmented" aria-label="Cách xem phiên điểm danh"><button aria-pressed={view === 'list'} onClick={() => setView('list')}>Danh sách</button><button aria-pressed={view === 'room'} onClick={() => setView('room')}>Phòng học 3D</button></div></div>
         {view === 'room' ? <Classroom className={cls.name} date={`${date} · ${session.start_time} - ${session.end_time}`} students={entries.map(e => ({ id: e.student_id, name: e.student_name }))} attendance={Object.fromEntries(entries.map(e => [e.student_id, e.status]))} disabled={busy || loading || !ready} readOnly={session.state !== 'open' || !session.can_manage} onPresent={id => mark(id, 'present')} onAbsent={id => mark(id, 'absent')}/> : <div className="attendance-list">{entries.map((entry, index) => <div className="attendance-row" key={entry.id}><span className="row-number">{index + 1}</span><div className="session-student"><strong>{entry.student_name}</strong><small>{entry.status === 'present' ? 'Có mặt' : entry.status === 'absent' ? 'Vắng' : 'Chưa điểm danh'}{entry.marked_by && ` · ${entry.marked_by}`}</small></div><div className="attendance-buttons"><button disabled={!editable} aria-pressed={entry.status === 'present'} className={entry.status === 'present' ? 'present' : ''} onClick={() => mark(entry.student_id, 'present')}>Có mặt</button><button disabled={!editable} aria-pressed={entry.status === 'absent'} className={entry.status === 'absent' ? 'absent' : ''} onClick={() => mark(entry.student_id, 'absent')}>Vắng</button><button disabled={!editable || entry.status === 'pending'} onClick={() => mark(entry.student_id, 'pending')}>Bỏ đánh dấu</button></div></div>)}</div>}
