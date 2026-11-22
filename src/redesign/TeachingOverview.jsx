@@ -126,8 +126,16 @@ export function Classes() {
         <p className="teaching-class-count">{cls.capacity ? `${count} / ${cls.capacity}` : count} học sinh <small>{capacity}</small></p>
         <ul className="teaching-slot-list">{slots.map(slot => <li key={slot.label}>
           <div><strong>{WEEKDAYS[slot.day]}</strong><time>{slot.start}–{slot.end}</time></div>
-          <p><span>Giáo viên</span> {slot.teacher || 'Chưa phân công'}</p>
-          <p><span>Trợ giảng</span> {slot.ta || 'Chưa phân công'}</p>
+          <dl className="teaching-slot-staff">
+            {[['teacher', 'Giáo viên'], ['ta', 'Trợ giảng']].map(([role, title]) => {
+              const names = slot.staff.filter(person => person.role === role).map(person => person.name);
+              return <div key={role}>
+                <dt>{title}</dt>
+                <dd>{names.length ? names.map(name => <span className="teaching-staff-name" key={name}>{name}</span>)
+                  : <small className="muted">Chưa phân công</small>}</dd>
+              </div>;
+            })}
+          </dl>
         </li>)}</ul>
         {!slots.length && <p className="muted">Chưa xếp lịch</p>}
         <footer><Link className="button secondary" aria-label={`Mở lớp ${cls.name}`} to={`/classes/${cls.id}`}>Mở lớp</Link></footer>

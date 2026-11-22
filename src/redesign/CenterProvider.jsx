@@ -159,7 +159,26 @@ export function CenterProvider({ children }) {
       validate: () => current.capacity && roster(classId).length >= current.capacity ? 'Lớp đã đủ chỗ. Hãy cập nhật sĩ số hoặc chọn lớp khác.' : '',
       footer: 'Học sinh vẫn được giữ trong các lớp đang học khác.', save: async values => { await requestSave(`/api/classes/${classId}/students`, { student_id: Number(values.studentId) }); await refreshCore(); notify('Đã thêm học sinh vào lớp.'); } });
   };
-  const removeStudent = (classId, student) => open({ title: `Bỏ ${student.name} khỏi lớp?`, content: <p>Chỉ bỏ liên kết với {cls(classId)?.name}. Hồ sơ, các lớp khác và điểm danh cũ vẫn giữ nguyên.</p>, submit: 'Bỏ khỏi lớp', save: async () => { await api(`/api/classes/${classId}/students/${student.id}`, { method: 'DELETE' }); await refreshCore(); notify('Đã bỏ học sinh khỏi lớp.'); } });
+  const removeStudent = (classId, student) => {
+    const enrolled = classesOf(student.id);
+    if (!classId && !enrolled.length) return;
+    open({
+      title: `Bỏ ${student.name} khỏi lớp?`,
+      content: classId ? <p>Học sinh sẽ rời lớp {cls(classId)?.name}. Hồ sơ và điểm danh cũ vẫn được giữ.</p>
+        : <p>Chọn lớp cần bỏ. Hồ sơ, các lớp khác và điểm danh cũ vẫn được giữ.</p>,
+      initial: { classId: classId || '' },
+      fields: classId ? undefined : [{
+        key: 'classId', label: 'Lớp cần bỏ', type: 'select', required: true,
+        options: [{ value: '', label: 'Chọn lớp' }, ...enrolled.map(item => ({ value: item.id, label: item.name }))],
+      }],
+      submit: 'Bỏ khỏi lớp',
+      save: async values => {
+        await api(`/api/classes/${values.classId}/students/${student.id}`, { method: 'DELETE' });
+        await refreshCore();
+        notify('Đã bỏ học sinh khỏi lớp.');
+      },
+    });
+  };
   const deleteTeacher = teacher => open({ title: `Xóa hồ sơ ${teacher.name}?`, content: <p>Tài khoản liên kết cũng bị xóa. Hệ thống sẽ chặn nếu nhân sự đã có công giảng dạy.</p>, submit: 'Xóa nhân sự', save: async () => { await api(`/api/teachers/${teacher.id}`, { method: 'DELETE' }); await refreshCore(); notify('Đã xóa nhân sự.'); } });
   const accountEditor = (record, accounts) => open({ title: record ? `Thông tin đăng nhập · ${record.name}` : 'Tạo tài khoản giáo viên', initial: record ? { username: record.username, password: '' } : { teacher_id: '', name: '', role: 1, phone: '', username: '', password: 'kidit' }, wide: true,
     fields: values => record ? [{ key: 'username', label: 'Tên đăng nhập', required: true, full: true, maxLength: 100 }, { key: 'password', label: 'Mật khẩu mới', type: 'password', full: true, maxLength: 128, help: 'Để trống để giữ nguyên. Đổi mật khẩu sẽ yêu cầu tài khoản này đăng nhập lại.' }] : [

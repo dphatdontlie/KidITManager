@@ -62,6 +62,48 @@
 .teaching-slot-list time { font-weight: 650; color: var(--accent-text); font-variant-numeric: tabular-nums; }
 .teaching-slot-list p { font-size: 15px; margin-top: 4px; }
 .teaching-slot-list p span { color: var(--muted); margin-inline-end: 4px; }
+.teaching-slot-staff { display: grid; gap: 7px; margin: 9px 0 0; }
+.teaching-slot-staff > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 8px;
+}
+.teaching-slot-staff dt { color: var(--muted); font-size: 14px; padding-block: 5px; }
+.teaching-slot-staff dd { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0; min-height: 30px; }
+.teaching-slot-staff dd small { font-size: 14px; }
+.teaching-staff-name {
+  max-width: 100%;
+  border: 1px solid var(--control);
+  border-radius: 7px;
+  padding: 3px 8px;
+  color: var(--ink);
+  background: var(--soft);
+  font-size: 15px;
+  font-weight: 600;
+}
+.student-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr));
+  gap: 16px;
+}
+.student-profile-card { display: flex; flex-direction: column; gap: 13px; padding: 18px; overflow-wrap: anywhere; }
+.student-profile-card h2 { font-size: 22px; line-height: 1.25; }
+.student-profile-card .class-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding-inline: 10px;
+  font-size: 15px;
+}
+.student-profile-contact { display: grid; grid-template-columns: minmax(87px, auto) minmax(0, 1fr); gap: 6px 10px; margin: 0; }
+.student-profile-contact dt { color: var(--muted); font-size: 14px; align-self: center; }
+.student-profile-contact dd { margin: 0; }
+.student-profile-contact a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent-text); font-weight: 600; text-decoration: underline; }
+.student-profile-card footer { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+.student-profile-card footer .button { flex: 1; justify-content: center; white-space: nowrap; }
 .teaching-class footer { margin-block-start: auto; }
 .teaching-class footer .button { width: 100%; justify-content: center; }
 .class-detail-panel .teaching-slot-list { margin: 0 20px 16px; }

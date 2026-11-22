@@ -99,10 +99,53 @@ export function ClassDetail({ id }) {
 }
 
 export function Students() {
-  const d=useCenter();const [query,setQuery]=useState('');const [classId,setClassId]=useState('');
-  const rows=d.students.filter(s=>matches(`${s.name} ${s.phone||''} ${s.parentName||''} ${s.parentPhone||''}`,query)&&(!classId||(classId==='none'?!d.classesOf(s.id).length:d.classesOf(s.id).some(c=>c.id===Number(classId)))));
-  const exportRows=()=>downloadCsv('Danh-sach-hoc-sinh.csv',[['Mã','Họ tên','Điện thoại học sinh','Phụ huynh','Điện thoại phụ huynh','Các lớp'],...rows.map(s=>[s.id,s.name,s.phone,s.parentName,s.parentPhone,d.classesOf(s.id).map(c=>c.name).join(', ')])]);
-  return <><PageHead title="Học sinh"><Button variant="secondary" icon={Download} disabled={!rows.length} onClick={exportRows}>Xuất danh sách</Button><Button icon={UserRoundPlus} onClick={()=>d.studentEditor()}>Thêm học sinh</Button></PageHead><div className="filters"><Find value={query} onChange={setQuery} placeholder="Tìm học sinh, phụ huynh, điện thoại..."/><Select label="Lớp" value={classId} onChange={e=>setClassId(e.target.value)}><option value="">Tất cả lớp</option><option value="none">Chưa xếp lớp</option>{d.classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</Select><span className="result-count">{rows.length} học sinh</span></div><div className="panel table-panel"><table className="responsive-table"><thead><tr><th>Học sinh</th><th>Các lớp đang học</th><th><span className="sr-only">Thao tác</span></th></tr></thead><tbody>{rows.map(s=><tr key={s.id}><td data-label="Học sinh"><div className="table-person"><Avatar name={s.name}/><div><strong>{s.name}</strong><small>HS{String(s.id).padStart(3,'0')}</small></div></div></td><td data-label="Lớp"><div className="tag-list">{d.classesOf(s.id).map(c=><ClassTag key={c.id} cls={c}/>)}{!d.classesOf(s.id).length&&<span className="muted">Chưa xếp lớp</span>}</div></td><td><Button variant="ghost small" onClick={()=>d.studentEditor(s)}>Xem hồ sơ</Button></td></tr>)}</tbody></table>{!rows.length&&<Empty title="Không có học sinh phù hợp" text="Thử bỏ bộ lọc hoặc tìm bằng tên khác."/>}</div></>;
+  const d = useCenter();
+  const [query, setQuery] = useState('');
+  const [classId, setClassId] = useState('');
+  const rows = d.students.map(student => ({ student, classes: d.classesOf(student.id) })).filter(({ student, classes }) =>
+    matches(`${student.name} ${student.phone || ''} ${student.parentName || ''} ${student.parentPhone || ''}`, query.trim())
+    && (!classId || (classId === 'none' ? !classes.length : classes.some(cls => cls.id === Number(classId))))
+  );
+  const exportRows = () => downloadCsv('Danh-sach-hoc-sinh.csv', [
+    ['Mã', 'Họ tên', 'Điện thoại học sinh', 'Phụ huynh', 'Điện thoại phụ huynh', 'Các lớp'],
+    ...rows.map(({ student, classes }) => [student.id, student.name, student.phone, student.parentName, student.parentPhone, classes.map(cls => cls.name).join(', ')]),
+  ]);
+  return <>
+    <PageHead title="Học sinh">
+      <Button variant="secondary" icon={Download} disabled={!rows.length} onClick={exportRows}>Xuất danh sách</Button>
+      <Button icon={UserRoundPlus} onClick={() => d.studentEditor()}>Thêm học sinh</Button>
+    </PageHead>
+    <div className="filters">
+      <Find value={query} onChange={setQuery} placeholder="Tìm học sinh, phụ huynh, điện thoại..."/>
+      <Select label="Lớp" value={classId} onChange={e => setClassId(e.target.value)}>
+        <option value="">Tất cả lớp</option><option value="none">Chưa xếp lớp</option>
+        {d.classes.map(cls => <option key={cls.id} value={cls.id}>{cls.name}</option>)}
+      </Select>
+      <span className="result-count">{rows.length} học sinh</span>
+    </div>
+    <div className="student-profile-grid">
+      {rows.map(({ student, classes }) => {
+        const phone = student.parentPhone?.trim();
+        const dial = phone?.replace(/(?!^)\+|[^+\d]/g, '');
+        const enrolledClass = classes.find(cls => String(cls.id) === classId) || (classes.length === 1 ? classes[0] : null);
+        return <article className="panel student-profile-card" key={student.id}>
+          <h2>{student.name}</h2>
+          <div className="tag-list" aria-label="Lớp đang học">
+            {classes.length ? classes.map(cls => <ClassTag key={cls.id} cls={cls}/>) : <span className="muted">Chưa xếp lớp</span>}
+          </div>
+          <dl className="student-profile-contact">
+            <dt>Phụ huynh</dt><dd>{student.parentName?.trim() || 'Chưa cập nhật'}</dd>
+            <dt>Số điện thoại</dt><dd>{dial && /\d/.test(dial) ? <a href={`tel:${dial}`}>{phone}</a> : phone || 'Chưa cập nhật'}</dd>
+          </dl>
+          <footer>
+            <Button variant="secondary" aria-label={`Sửa hồ sơ ${student.name}`} onClick={() => d.studentEditor(student)}>Sửa</Button>
+            {!!classes.length && <Button variant="ghost danger" aria-label={`Bỏ ${student.name} khỏi lớp`} onClick={() => d.removeStudent(enrolledClass?.id, student)}>Bỏ khỏi lớp</Button>}
+          </footer>
+        </article>;
+      })}
+    </div>
+    {!rows.length && <Empty title="Không có học sinh phù hợp" text="Thử bỏ bộ lọc hoặc tìm bằng tên khác."/>}
+  </>;
 }
 
 export function Teachers() {
