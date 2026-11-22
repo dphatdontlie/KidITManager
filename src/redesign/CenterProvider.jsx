@@ -64,13 +64,21 @@ export function CenterProvider({ children }) {
   const notify = text => setNotice(text);
   const close = () => setModel(current => current === model ? null : current);
   const requestSave = async (url, body, method = 'POST') => api(url, jsonBody(body, method));
-  const addWork = (classId = '', selectedDate = localDate(), record) => {
+  const addWork = (classId = '', selectedDate = localDate(), record, selectedSlot = '') => {
     if (!user.id && role !== 'admin') return;
     if (record?.source === 'historic') return;
     open({ title: record ? 'Sửa công giảng dạy' : role === 'admin' ? 'Chấm công cho giáo viên' : 'Chấm công của tôi', initial: {
       teacher: user.name, teacher_id: record?.teacherId || user.id || '', classId, date: selectedDate, role: user.teacher_role === 2 ? 'ta' : 'teacher', status: 'completed', lesson: '', notes: '', single_teacher: false, override_amount: '', override_reason: '', recalculate: false,
-      ...(record ? { ...record, teacher: record.teacherName, role: record.rawRole, slot: `${record.start}-${record.end}` } : {}),
-    }, wide: true, submit: record ? 'Lưu thay đổi' : 'Xác nhận công',
+      ...(record ? { ...record, teacher: record.teacherName, role: record.rawRole, slot: `${record.start}-${record.end}` } : { slot: selectedSlot }),
+    }, wide: true, layout: 'work-entry',
+    submit: values => values.status === 'draft' ? 'Lưu bản nháp' : values.status === 'cancelled' ? 'Lưu buổi hủy' : record ? 'Lưu thay đổi' : 'Xác nhận công',
+    fieldGroups: [
+      { title: 'Buổi dạy', keys: ['teacher_id', 'teacher', 'classId', 'date', 'slot', 'role'] },
+      { title: 'Nội dung và kết quả', keys: ['lesson', 'status', 'notes'] },
+      { title: 'Đội hình thực tế', keys: ['teacher_count', 'ta_count'], description: 'Kiểm tra cả người chưa tự ghi công.' },
+      { title: 'Tiền công mỗi suất', keys: ['pay_preview'], emphasis: true },
+      { title: 'Ngoại lệ tiền công', keys: ['single_teacher', 'override_amount', 'override_reason', 'recalculate'], collapsible: true, initiallyOpen: record?.single_teacher === true || Number(record?.single_teacher) === 1 || record?.override_amount != null },
+    ],
     fields: values => {
       const selected = cls(values.classId); const slots = values.date ? classSlots(selected, values.date) : [];
       const defaults = staffingCounts(slots.find(s => s.key === values.slot)?.staff);
@@ -81,23 +89,23 @@ export function CenterProvider({ children }) {
       const rate = frozen ? record.pay_rate : withSessionPay({ role: values.role, teacher_count: teacherCount, ta_count: taCount, class_pay_rate: configured, single_teacher: values.single_teacher === true || values.single_teacher === 'true', override_amount: role === 'admin' ? values.override_amount != null && values.override_amount !== '' ? Number(values.override_amount) : null : record?.override_amount ?? null }).pay_rate;
       if (record && Number(values.classId) === record.classId && values.date === record.date && !slots.some(s => s.key === values.slot)) slots.push({ key: `${record.start}-${record.end}`, label: record.slot, start: record.start, end: record.end });
       return [
-        ...(role === 'admin' ? [{ key: 'teacher_id', label: 'Giáo viên / trợ giảng được chấm công', type: 'select', required: true, readOnly: Boolean(record), full: true, options: [{ value: '', label: 'Chọn nhân sự' }, ...teachers.filter(t => !record || t.id === record.teacherId).map(t => ({ value: t.id, label: t.name }))], help: 'Admin ghi hộ từng người. Kiểm tra vai trò và đội hình thực tế trước khi xác nhận.' }] : [{ key: 'teacher', label: 'Người chấm công', readOnly: true, full: true, help: 'Lấy từ tài khoản cá nhân của bạn.' }]),
-        { key: 'classId', label: 'Lớp học', type: 'select', required: true, resetSlot: true, full: true, options: [{ value: '', label: 'Chọn lớp' }, ...classes.map(c => ({ value: c.id, label: c.name }))] },
-        { key: 'date', label: 'Ngày dạy theo lịch lớp', type: 'scheduled-date', schedule: selected?.schedule || '', scheduleHistory: selected?.schedule_history, savedDate: record && Number(values.classId) === record.classId ? record.date : '', required: true, resetSlot: true },
-        { key: 'slot', label: 'Suất theo lịch lớp', type: 'select', required: true, options: [{ value: '', label: slots.length ? 'Chọn suất' : 'Ngày này chưa có lịch lớp' }, ...slots.map(s => ({ value: s.key, label: s.label || `${s.start} - ${s.end}` }))] },
+        ...(role === 'admin' ? [{ key: 'teacher_id', label: 'Nhân sự được chấm công', type: 'select', required: true, readOnly: Boolean(record), options: [{ value: '', label: 'Chọn nhân sự' }, ...teachers.filter(t => !record || t.id === record.teacherId).map(t => ({ value: t.id, label: t.name }))]  }] : [{ key: 'teacher', label: 'Người chấm công', readOnly: true }]),
+        { key: 'classId', label: 'Lớp học', type: 'select', required: true, resetSlot: true, options: [{ value: '', label: 'Chọn lớp' }, ...classes.map(c => ({ value: c.id, label: c.name }))] },
+        { key: 'date', label: 'Ngày dạy', type: 'scheduled-date', schedule: selected?.schedule || '', scheduleHistory: selected?.schedule_history, savedDate: record && Number(values.classId) === record.classId ? record.date : '', required: true, resetSlot: true },
+        { key: 'slot', label: 'Suất học', type: 'select', required: true, readOnly: !slots.length, options: [{ value: '', label: slots.length ? 'Chọn suất' : selected ? 'Ngày này chưa có suất' : 'Chọn lớp trước' }, ...slots.map(s => ({ value: s.key, label: s.label || `${s.start} - ${s.end}` }))] },
         { key: 'role', label: 'Vai trò trong buổi', type: 'select', options: [{ value: 'teacher', label: 'Dạy chính' }, { value: 'ta', label: 'Trợ giảng' }] },
-        { key: 'teacher_count', label: 'Số giáo viên thực tế trong suất', type: 'select', displayValue: teacherCount, options: Array.from({ length: 20 }, (_, i) => ({ value: i + 1, label: `${i + 1} giáo viên` })) },
-        { key: 'ta_count', label: 'Số trợ giảng thực tế trong suất', type: 'select', displayValue: taCount, options: Array.from({ length: 20 }, (_, i) => ({ value: i, label: `${i} trợ giảng` })), help: 'Gợi ý từ lịch lớp. Kiểm tra đội hình thực tế, kể cả người chưa tự chấm công.' },
+        { key: 'teacher_count', label: 'Giáo viên', type: 'select', displayValue: teacherCount, options: Array.from({ length: 20 }, (_, i) => ({ value: i + 1, label: `${i + 1} giáo viên` })) },
+        { key: 'ta_count', label: 'Trợ giảng', type: 'select', displayValue: taCount, options: Array.from({ length: 20 }, (_, i) => ({ value: i, label: `${i} trợ giảng` }))  },
         { key: 'single_teacher', label: 'Một người dạy thay đội hình hai giáo viên', type: 'select', full: true, options: [{ value: 'false', label: 'Không' }, { value: 'true', label: 'Có, buổi này chỉ một giáo viên dạy thay' }], help: 'Chỉ chọn khi thực tế đúng một giáo viên. Đơn giá theo tình huống này được ưu tiên nếu KID đã cấu hình.' },
         ...(role === 'admin' ? [
           { key: 'override_amount', label: 'Đơn giá riêng cho lượt công này (đ)', type: 'number', min: 0, max: 99999999999999, full: true, help: 'Không bắt buộc. Trống: theo đơn giá lớp; nhập 0: nhận 0đ. Chỉ áp dụng cho người đang chọn.' },
           { key: 'override_reason', label: 'Lý do đơn giá riêng', type: 'textarea', maxLength: 1000, full: true },
           ...(record?.status === 'completed' ? [{ key: 'recalculate', label: 'Tiền công đã xác nhận', type: 'select', full: true, options: [{ value: 'false', label: 'Giữ nguyên tiền đã chốt' }, { value: 'true', label: 'Tính lại theo thông tin và đơn giá ngày dạy' }] }] : []),
         ] : []),
-        { key: 'pay_preview', label: role === 'admin' ? 'Lương nhân sự được chọn / suất' : 'Lương của bạn / suất', type: 'display', full: true, text: values.status === 'cancelled' ? '0đ (buổi đã hủy)' : rate == null ? 'Chưa đủ dữ liệu để tính lương' : `${money(rate)}${values.status === 'draft' ? ' (dự kiến)' : frozen ? ' (tiền đã chốt)' : ''}`, help: frozen ? 'Sửa đội hình hoặc ghi chú không tự đổi tiền đã chốt. Admin cần chọn tính lại để cập nhật lương.' : configured ? 'Ưu tiên đơn giá riêng, một người thay hai giáo viên, không trợ, rồi đơn giá giáo viên thông thường. Đơn giá tính cho mỗi người, không tự chia hoặc chuyển tiền.' : 'KID chưa có đơn giá áp dụng cho ngày dạy này: dùng cách tính đội hình cũ.' },
-        { key: 'lesson', label: 'Tên bài học', required: true, full: true, placeholder: 'Nhập bài đã dạy trong suất này' },
-        { key: 'status', label: 'Trạng thái', type: 'select', full: true, options: [{ value: 'completed', label: 'Đã dạy, tính công' }, { value: 'draft', label: 'Chưa xác nhận' }, { value: 'cancelled', label: 'Đã hủy, không tính công' }] },
-        { key: 'notes', label: 'Ghi chú (không bắt buộc)', type: 'textarea', full: true },
+        { key: 'pay_preview', label: 'Số tiền', type: 'display', full: true, text: !values.slot || (role === 'admin' && !values.teacher_id) ? 'Chưa đủ thông tin' : values.status === 'cancelled' ? '0đ (buổi đã hủy)' : rate == null ? 'Chưa đủ dữ liệu để tính lương' : `${money(rate)}${values.status === 'draft' ? ' (dự kiến)' : frozen ? ' (tiền đã chốt)' : ''}`, help: !values.slot ? (role === 'admin' ? 'Chọn nhân sự và suất học để xem số tiền.' : 'Chọn suất học để xem số tiền.') : role === 'admin' && !values.teacher_id ? 'Chọn nhân sự để xem số tiền.' : frozen ? 'Tiền đã chốt. Quản trị viên có thể tính lại trong Ngoại lệ tiền công.' : configured ? 'Theo đơn giá lớp và đội hình, trừ khi có đơn giá riêng.' : 'Tính theo đội hình vì lớp chưa có đơn giá cho ngày này.' },
+        { key: 'lesson', label: 'Tên bài học', required: true, placeholder: 'Nhập bài đã dạy' },
+        { key: 'status', label: 'Trạng thái', type: 'select', options: [{ value: 'completed', label: 'Đã dạy, tính công' }, { value: 'draft', label: 'Chưa xác nhận' }, { value: 'cancelled', label: 'Đã hủy, không tính công' }] },
+        { key: 'notes', label: 'Ghi chú (không bắt buộc)', type: 'textarea', rows: 2, full: true },
       ];
     },
     validate: values => {

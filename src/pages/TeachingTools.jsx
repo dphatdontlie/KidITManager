@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { Button } from '../components/ui/Button';
@@ -97,16 +98,41 @@ function Scoreboard({ teams, setTeams }) {
 
 export function TeachingTools() {
   const [active, setActive] = useState('timer');
-  const [roster, setRoster, rosterSaved] = useToolStorage('kidit-tools-roster-v1', () => ({ classId: '', text: '' }), validRoster);
+  const [params] = useSearchParams();
+  const classId = params.get('class');
+  const [savedRoster, setSavedRoster, rosterSaved] = useToolStorage('kidit-tools-roster-v1', () => ({ classId: '', text: '' }), validRoster);
   const [teams, setTeams, scoresSaved] = useToolStorage('kidit-tools-scores-v1', () => [newTeam('Đội 1'), newTeam('Đội 2')], validTeams);
+  const [classLoad, setClassLoad] = useState(null);
+  const [classRoster, setClassRoster] = useState({ classId: '', text: '' });
+  const hasClass = /^\d+$/.test(classId || '');
+  const roster = hasClass ? classRoster : savedRoster;
+  const setRoster = hasClass ? setClassRoster : setSavedRoster;
+  useEffect(() => {
+    if (!hasClass) return;
+    setClassRoster({ classId, text: '' });
+    const controller = new AbortController();
+    api(`/api/classes/${classId}/students`, { signal: controller.signal }).then(students => {
+      if (controller.signal.aborted) return;
+      setClassRoster({ classId, text: students.map(student => `${student.name} (#${student.id})`).join('\n') });
+      setClassLoad({ classId, error: '' });
+    }).catch(error => {
+      if (!controller.signal.aborted) setClassLoad({ classId, error: error.message });
+    });
+    return () => controller.abort();
+  }, [classId, hasClass]);
+  const loadingClass = hasClass && classLoad?.classId !== classId;
   const names = useMemo(() => parseNames(roster.text), [roster.text]);
-  return <div className="teaching-tools"><div className="page-header"><h1 className="text-h1">Công cụ trên lớp</h1><p className="text-muted mt-2">Dùng ngay trong buổi dạy. Công cụ cá nhân lưu trên trình duyệt; phòng đấu trắc nghiệm được đồng bộ qua máy chủ.</p></div>
+  return <div className="teaching-tools"><div className="page-header"><h1 className="text-h1">Công cụ trên lớp</h1></div>
     <nav className="tools-navigation" aria-label="Chọn công cụ hỗ trợ">{TOOLS.map(([key, label]) => <button key={key} aria-pressed={active === key} onClick={() => setActive(key)}>{label}</button>)}</nav>
     {(!rosterSaved || !scoresSaved) && <p role="status" className="tool-error">Trình duyệt không lưu được dữ liệu công cụ. Bạn vẫn sử dụng được trong trang đang mở.</p>}
     <div hidden={active !== 'timer'} className="tools-panel"><CountdownTimer /></div>
-    {(active === 'picker' || active === 'groups') && <RosterInput roster={roster} setRoster={setRoster} names={names} />}
-    <div hidden={active !== 'picker'}><NamePicker names={names} /></div>
-    <div hidden={active !== 'groups'}><GroupMaker names={names} onUseTeams={groups => { setTeams(groups.map((members, i) => newTeam(`Nhóm ${i + 1}`, members))); setActive('scores'); }} /></div>
+    {(active === 'picker' || active === 'groups') && loadingClass && <p role="status">Đang lấy danh sách lớp…</p>}
+    {(active === 'picker' || active === 'groups') && !loadingClass && <>
+      {classLoad?.classId === classId && classLoad?.error && <p role="alert" className="tool-error">Không lấy được danh sách lớp: {classLoad.error}. Hãy chọn lại lớp bên dưới.</p>}
+      <RosterInput roster={roster} setRoster={setRoster} names={names} />
+    </>}
+    <div hidden={active !== 'picker' || loadingClass}><NamePicker names={names} /></div>
+    <div hidden={active !== 'groups' || loadingClass}><GroupMaker names={names} onUseTeams={groups => { setTeams(groups.map((members, i) => newTeam(`Nhóm ${i + 1}`, members))); setActive('scores'); }} /></div>
     <div hidden={active !== 'scores'}><Scoreboard teams={teams} setTeams={setTeams} /></div>
     {active === 'quiz' && <QuizHost />}
   </div>;

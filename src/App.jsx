@@ -8,6 +8,7 @@ import LiveApp, { Dashboard, Schedule, Classes, DetailRoute, Students, Teachers,
 import { Empty } from './redesign/ui';
 import './redesign/approved.css';
 import './redesign/production.css';
+import './redesign/teacher-workspace.css';
 import { QuizStudent } from './quiz/QuizStudent';
 import Assistant from './redesign/Assistant';
 import Notifications from './redesign/Notifications';

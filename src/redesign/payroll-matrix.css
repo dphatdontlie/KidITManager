@@ -1,0 +1,35 @@
+.matrix-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+.matrix-toolbar h2 { font-size: 22px; }
+.matrix-toolbar p { margin-top: 4px; font-size: 14px; }
+.matrix-toolbar .filters { margin: 0; gap: 12px; align-items: end; }
+.matrix-summary { margin: 14px 0; font-size: 14px; }
+.matrix-scroll {
+  --matrix-top-row: 42px;
+  --matrix-staff-width: 150px;
+  max-width: 100%;
+  max-height: min(64vh, 720px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.payroll-matrix { border-collapse: separate; border-spacing: 0; min-width: 100%; width: max-content; font-size: 14px; }
+.payroll-matrix :is(td, th) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.payroll-matrix thead th { position: sticky; z-index: 3; text-align: center; white-space: nowrap; padding: 0 10px; }
+.payroll-matrix thead tr:first-child th { top: 0; height: var(--matrix-top-row); background: var(--sidebar); color: var(--sidebar-ink); }
+.payroll-matrix thead tr:nth-child(2) th { top: var(--matrix-top-row); height: 35px; background: var(--accent-soft); color: var(--ink); }
+.payroll-matrix .matrix-date { position: sticky; left: 0; min-width: 108px; text-align: center; font-variant-numeric: tabular-nums; border-right: 2px solid var(--line); }
+.payroll-matrix thead .matrix-date { z-index: 5; }
+.payroll-matrix tbody .matrix-date { z-index: 2; font-weight: 600; }
+.payroll-matrix tbody :is(th, td) { background: var(--surface); }
+.payroll-matrix tbody:nth-of-type(even) :is(th, td) { background: var(--soft); }
+.payroll-matrix td { min-width: var(--matrix-staff-width); width: var(--matrix-staff-width); height: 28px; padding: 0; vertical-align: top; }
+.payroll-matrix .matrix-class-start { border-left: 1px solid var(--control); }
+.matrix-entry { display: block; padding: 6px 9px; width: 100%; text-align: left; color: var(--ink); overflow-wrap: anywhere; line-height: 1.35; }
+.matrix-entry strong { display: block; font-size: 14px; }
+.matrix-entry-editable { min-height: 44px; }
+.matrix-entry-editable:hover { background: var(--accent-soft); }
+.matrix-entry-editable:focus-visible { outline-offset: -3px; }
+.matrix-cell-time, .matrix-entry small { display: block; font-size: 12px; color: var(--muted); }
+.matrix-cell-amount { display: block; color: var(--accent-text); font-weight: 650; font-variant-numeric: tabular-nums; }
+.payroll-matrix tfoot :is(th, td) { background: var(--accent-soft); color: var(--ink); padding: 8px; text-align: center; font-weight: 650; }

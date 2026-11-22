@@ -3,7 +3,7 @@ import { DateFields } from '../components/DateFields';
 import { localDate } from '../lib/api';
 import { dateLabel } from './format';
 import { weekdayLabel } from '../../shared/class-schedule';
-import { scheduleBlocksOnDate, shiftScheduleDate } from './schedule';
+import { lessonHref, scheduleBlocksOnDate, shiftScheduleDate } from './schedule';
 import { Button, Empty } from './ui';
 import './daily-schedule.css';
 
@@ -30,7 +30,7 @@ export default function DailySchedule({ blocks, date, onDateChange }) {
       <thead><tr><th scope="col">Suất học</th><th scope="col">Lớp trong ngày</th></tr></thead>
       <tbody>{times.map(time => <tr key={time}>
         <th scope="row"><span>{time.split('-')[0]}</span><span>{time.split('-')[1]}</span></th>
-        <td><div className="daily-class-list">{entries.filter(entry => entry.timeKey === time).map(entry => <Link className="daily-class" key={entry.id} to={`/classes/${entry.classId}`}>
+        <td><div className="daily-class-list">{entries.filter(entry => entry.timeKey === time).map(entry => <Link className="daily-class" key={entry.id} to={lessonHref(entry.classId,entry.date,entry.timeKey)}>
           <strong>{entry.className}</strong><span>GV: {entry.teacher}</span><span>TG: {entry.ta || 'Chưa phân công'}</span><small>{entry.room ? /^phòng\b/iu.test(entry.room) ? entry.room : `Phòng ${entry.room}` : 'Chưa xếp phòng'}</small>
         </Link>)}</div></td>
       </tr>)}</tbody>

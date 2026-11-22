@@ -5,6 +5,16 @@ import { scheduleOnDate } from '../../shared/schedule-history.js';
 export const SCHEDULE_DAYS = [1, 2, 3, 4, 5, 6, 0];
 export const TIME_SLOTS = ['07:00-09:00', '09:00-11:00', '15:15-17:15', '17:15-19:15', '19:15-21:15'];
 
+export function slotHasPerson(slot, name) {
+  const normalized = value => String(value || '').normalize('NFC').trim().toLocaleLowerCase('vi');
+  const person = normalized(name);
+  return !!person && slot.staff.some(entry => normalized(entry.name) === person);
+}
+
+export function lessonHref(classId, date, slot) {
+  return `/classes/${classId}?${new URLSearchParams({ date, slot })}`;
+}
+
 export function shiftScheduleDate(date, days) {
   if (!isCalendarDate(date) || !Number.isInteger(days)) return '';
   const next = new Date(`${date}T12:00:00Z`);
@@ -71,7 +81,7 @@ export function buildScheduleBlocks(classes, person, date) {
   return classes.flatMap(cls => classSlots(cls, date).map(slot => ({
     id: `${cls.id}-${slot.day}-${slot.key}`, classId: cls.id, className: cls.name,
     staff: slot.staff, teacher: person(slot.teacher), ta: slot.ta ? person(slot.ta) : '', room: scheduleOnDate(cls, date).room,
-    day: WEEKDAYS[slot.day], dayIndex: slot.day, timeKey: slot.key,
+    day: WEEKDAYS[slot.day], dayIndex: slot.day, timeKey: slot.key, date,
   })));
 }
 

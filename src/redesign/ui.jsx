@@ -13,7 +13,7 @@ export function Avatar({ name, large = false }) { return <span className={`avata
 export function Badge({ value, type = 'work' }) { const [label, tone] = (type === 'work' ? workStatus : invoiceStatus)[value] || ['Chưa cập nhật', 'neutral']; return <span className={`badge ${tone}`}>{tone === 'good' && <Icon icon={Check} size={13} />}{label}</span>; }
 export function Empty({ title = 'Chưa có dữ liệu', text = 'Thử đổi bộ lọc hoặc thêm bản ghi đầu tiên.', action }) { return <div className="empty"><Icon icon={BookOpen} size={30} /><h3>{title}</h3><p>{text}</p>{action}</div>; }
 export function Feedback({ error, retry }) { return error ? <div className="feedback-error" role="alert"><Icon icon={CircleAlert} /><span>{error}</span>{retry && <Button variant="ghost small" onClick={retry}>Thử lại</Button>}</div> : null; }
-export function PageHead({ title, description, children }) { return <header className="page-head"><div><h1>{title}</h1><p>{description}</p></div>{children && <div className="head-actions">{children}</div>}</header>; }
+export function PageHead({ title, description, children }) { return <header className="page-head"><div><h1>{title}</h1>{description && <p>{description}</p>}</div>{children && <div className="head-actions">{children}</div>}</header>; }
 export function PanelHead({ title, caption, children }) { return <div className="panel-head"><div><h2>{title}</h2>{caption && <p>{caption}</p>}</div>{children}</div>; }
 export function Find({ value, onChange, placeholder = 'Tìm theo tên...' }) { return <label className="find"><Icon icon={Search} /><input aria-label={placeholder} placeholder={placeholder} type="search" value={value} onChange={e => onChange(e.target.value)} />{value && <button type="button" aria-label="Xóa tìm kiếm" onClick={() => onChange('')}><Icon icon={X} size={16} /></button>}</label>; }
 export function Select({ label, children, ...props }) { return <label className="filter-select"><span>{label}</span><select aria-label={label} {...props}>{children}</select></label>; }
@@ -25,9 +25,30 @@ export function EditDialog({ model, close }) {
   useEffect(() => { const previous = document.activeElement; const dialog = ref.current; dialog.showModal(); return () => { dialog.close(); previous?.focus(); }; }, []);
   const fields = typeof model.fields === 'function' ? model.fields(values) : model.fields;
   const setField = (field, value) => { setValues(v => ({ ...v, [field.key]: value, ...(field.resetSlot && v[field.key] !== value ? { slot: '' } : {}), ...((field.resetSlot || field.key === 'slot') && v[field.key] !== value ? { teacher_count: undefined, ta_count: undefined } : {}) })); setError(''); };
-  return <dialog ref={ref} className={`dialog ${model.wide ? 'wide' : ''}`} aria-labelledby="dialog-title" onCancel={e => { e.preventDefault(); if (!busy) close(); }} onClick={e => { if (e.target === ref.current && !busy) close(); }}>
-    <div className="dialog-head"><div><p className="muted">{model.caption || 'KidIT Manager'}</p><h2 id="dialog-title">{model.title}</h2></div><button disabled={busy} type="button" className="icon-button" aria-label="Đóng hộp thoại" onClick={close}><Icon icon={X} /></button></div>
-    <form onSubmit={async e => {
+  const renderFields = items => <div className="form-grid">{items.map(f => f.type === 'effective-date' ? <div className="full" key={f.key}><DateFields label={f.label} value={values[f.key] || ''} onChange={value => setField(f, value)} disabled={busy}/><small>{f.help}</small></div> : f.type === 'scheduled-date' ? <div className="full" key={f.key}><AttendancePicker label={f.label} schedule={f.schedule} scheduleHistory={f.scheduleHistory} savedDate={f.savedDate} disabled={busy || (!f.schedule && !f.scheduleHistory?.length && !f.savedDate)} value={values[f.key] || ''} onChange={value => setField(f, value)} />{!f.schedule && !f.scheduleHistory?.length && !f.savedDate && <p className="picker-help">Chọn lớp để hiện các buổi học có sẵn.</p>}</div> : <label key={f.key} className={f.full ? 'full' : ''}>{f.label}{f.required && <span className="required"> *</span>}
+          {f.type === 'display' ? <output>{f.text}</output> : f.type === 'select' ? <select aria-label={f.label} required={f.required} disabled={f.readOnly} value={values[f.key] ?? f.displayValue ?? ''} onChange={e => setField(f, e.target.value)}>{f.options.map(o => <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>)}</select> : f.type === 'textarea' ? <textarea aria-label={f.label} required={f.required} rows={f.rows ?? (f.maxLength > 2000 ? 7 : 3)} maxLength={f.maxLength || 2000} value={values[f.key] || ''} onChange={e => setField(f, e.target.value)} /> : <input aria-label={f.label} required={f.required} readOnly={f.readOnly} min={f.min} max={f.max} step={f.type === 'number' ? 1 : undefined} maxLength={f.maxLength || 255} type={f.type || 'text'} autoComplete={f.type === 'password' ? 'new-password' : 'off'} value={values[f.key] ?? ''} placeholder={f.placeholder} onChange={e => setField(f, e.target.value)} />}
+          {f.help && <small>{f.help}</small>}</label>)}</div>;
+  const renderGroup = group => {
+    const items = group.keys.map(key => fields.find(field => field.key === key)).filter(Boolean);
+    if (group.collapsible) return <details className="work-entry-exceptions" open={group.initiallyOpen || undefined} key={group.title}>
+      <summary>{group.title}</summary>
+      {renderFields(items)}
+    </details>;
+    return <section className={`work-entry-group${group.emphasis ? ' work-entry-pay' : ''}`} aria-label={group.title} key={group.title}>
+      <h3>{group.title}</h3>
+      {group.description && <p className="work-entry-group-help">{group.description}</p>}
+      {group.emphasis ? <div className="work-entry-pay-value">
+        <output aria-label={group.title}>{items[0].text}</output>
+        {items[0].help && <p>{items[0].help}</p>}
+      </div> : renderFields(items)}
+    </section>;
+  };
+  return <dialog ref={ref} className={`dialog ${model.wide ? 'wide' : ''} ${model.layout || ''}`} aria-labelledby="dialog-title" onCancel={e => { e.preventDefault(); if (!busy) close(); }} onClick={e => { if (e.target === ref.current && !busy) close(); }}>
+    <div className="dialog-head"><div>{(model.caption || !model.layout) && <p className="muted">{model.caption || 'KidIT Manager'}</p>}<h2 id="dialog-title">{model.title}</h2></div><button disabled={busy} type="button" className="icon-button" aria-label="Đóng hộp thoại" onClick={close}><Icon icon={X} /></button></div>
+    <form onInvalidCapture={e => {
+      const details = e.target.closest('details');
+      if (details) details.open = true;
+    }} onSubmit={async e => {
       e.preventDefault(); if (busy) return;
       if (fields?.some(f => f.required && typeof values[f.key] === 'string' && !values[f.key].trim())) { setError('Hãy nhập đủ các trường bắt buộc.'); return; }
       const message = model.validate?.(values); if (message) { setError(message); return; }
@@ -36,9 +57,10 @@ export function EditDialog({ model, close }) {
     }}>
       {model.content && <div className="dialog-content">{model.content}</div>}
       <fieldset className="dialog-fields" disabled={busy}>
-        {fields && <div className="form-grid">{fields.map(f => f.type === 'effective-date' ? <div className="full" key={f.key}><DateFields label={f.label} value={values[f.key] || ''} onChange={value => setField(f, value)} disabled={busy}/><small>{f.help}</small></div> : f.type === 'scheduled-date' ? <div className="full" key={f.key}><AttendancePicker label={f.label} schedule={f.schedule} scheduleHistory={f.scheduleHistory} savedDate={f.savedDate} disabled={busy || (!f.schedule && !f.scheduleHistory?.length && !f.savedDate)} value={values[f.key] || ''} onChange={value => setField(f, value)} />{!f.schedule && !f.scheduleHistory?.length && !f.savedDate && <p className="picker-help">Chọn lớp để hiện các buổi học có sẵn.</p>}</div> : <label key={f.key} className={f.full ? 'full' : ''}>{f.label}{f.required && <span className="required"> *</span>}
-          {f.type === 'display' ? <output>{f.text}</output> : f.type === 'select' ? <select aria-label={f.label} required={f.required} disabled={f.readOnly} value={values[f.key] ?? f.displayValue ?? ''} onChange={e => setField(f, e.target.value)}>{f.options.map(o => <option key={o.value ?? o} value={o.value ?? o}>{o.label ?? o}</option>)}</select> : f.type === 'textarea' ? <textarea aria-label={f.label} required={f.required} rows={f.maxLength > 2000 ? 7 : 3} maxLength={f.maxLength || 2000} value={values[f.key] || ''} onChange={e => setField(f, e.target.value)} /> : <input aria-label={f.label} required={f.required} readOnly={f.readOnly} min={f.min} max={f.max} step={f.type === 'number' ? 1 : undefined} maxLength={f.maxLength || 255} type={f.type || 'text'} autoComplete={f.type === 'password' ? 'new-password' : 'off'} value={values[f.key] ?? ''} placeholder={f.placeholder} onChange={e => setField(f, e.target.value)} />}
-          {f.help && <small>{f.help}</small>}</label>)}</div>}
+        {model.fieldGroups ? <div className="work-entry-grid">
+          <div>{model.fieldGroups.slice(0, 2).map(renderGroup)}</div>
+          <div className="work-entry-side">{model.fieldGroups.slice(2).map(renderGroup)}</div>
+        </div> : fields && renderFields(fields)}
         {model.scheduleEditor && <fieldset className="class-schedule-editor">
           <legend>Lịch học và phân công theo suất</legend>
           <p className="muted">Thêm từng người và chọn vai trò trong suất này. Một suất có thể có nhiều giáo viên hoặc trợ giảng. Vai trò được chọn chỉ áp dụng cho suất này.</p>
@@ -65,8 +87,10 @@ export function EditDialog({ model, close }) {
           <Button variant="secondary" icon={Plus} onClick={() => setField({ key: 'scheduleRows' }, [...values.scheduleRows, { day: 1, time: '15:15-17:15', staff: [] }])}>Thêm suất học</Button>
         </fieldset>}
       </fieldset>
+      <div className="dialog-submit-area">
       {error && <div className="error-note" role="alert"><Icon icon={CircleAlert} />{error}</div>}
-      <div className="dialog-footer"><span>{model.footer || 'Thông tin được lưu vào hệ thống khi xác nhận.'}</span><Button variant="secondary" disabled={busy} onClick={close}>{model.save ? 'Hủy' : 'Đóng'}</Button>{model.save && <Button type="submit" disabled={busy} icon={Check}>{busy ? 'Đang lưu...' : model.submit || 'Lưu thông tin'}</Button>}</div>
+      <div className="dialog-footer">{(model.footer || !model.layout) && <span>{model.footer || 'Thông tin được lưu vào hệ thống khi xác nhận.'}</span>}<Button variant="secondary" disabled={busy} onClick={close}>{model.save ? 'Hủy' : 'Đóng'}</Button>{model.save && <Button type="submit" disabled={busy} icon={Check}>{busy ? 'Đang lưu...' : (typeof model.submit === 'function' ? model.submit(values) : model.submit) || 'Lưu thông tin'}</Button>}</div>
+      </div>
     </form>
   </dialog>;
 }

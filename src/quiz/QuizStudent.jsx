@@ -5,7 +5,7 @@ import { Leaderboard, Question, QuizError, RoomHeading, SkillLog } from './QuizS
 import { quizRequest, readQuizStorage, useQuizRoom, writeQuizStorage } from './useQuizRoom';
 import './quiz.css';
 import { QuizAudio } from './QuizAudio';
-import { ArenaIntro, MatchFinale, RaceBoard, TeamEmblem } from './Arena';
+import { MatchFinale, RaceBoard, TeamEmblem } from './Arena';
 import './arena.css';
 
 function SkillControls({ room, now, busy, stale, act }) {
@@ -59,8 +59,8 @@ export function QuizStudent() {
   const tokens = useRef({});
   useEffect(() => { setCode(routeCode); setToken(tokens.current[routeCode] || readQuizStorage(`kidit-quiz-player-${routeCode}`)); }, [routeCode]);
   useEffect(() => { const previous = document.title; document.title = 'Đấu trường trắc nghiệm | KidIT'; return () => { document.title = previous; }; }, []);
-  return <main className="quiz-app quiz-student"><header className="quiz-brand"><strong>KidIT <span>Arena</span></strong><span>Đấu trường kiến thức</span><Link className="quiz-link" to="/">Dành cho giáo viên</Link></header>{storageNotice && <p className="quiz-notice" role="status">{storageNotice}</p>}{!(token&&routeCode)&&<ArenaIntro join/>}
-    {token && routeCode ? <PlayerRoom key={`${routeCode}-${token}`} code={routeCode} token={token} exit={() => { navigate('/play'); setToken(''); setError(''); }} /> : <section className="quiz-join"><div><p className="quiz-muted">Mỗi bạn một máy. Cả đội cùng thi đấu.</p><h1>Vào phòng đấu</h1><p>Nhập mã 6 số giáo viên cung cấp. Bạn sẽ được xếp vào đội khi tham gia.</p></div><form onSubmit={async e => {
+  return <main className="quiz-app quiz-student"><header className="quiz-brand"><strong>KidIT <span>Arena</span></strong><span>Đấu trường kiến thức</span><Link className="quiz-link" to="/">Dành cho giáo viên</Link></header>{storageNotice && <p className="quiz-notice" role="status">{storageNotice}</p>}
+    {token && routeCode ? <PlayerRoom key={`${routeCode}-${token}`} code={routeCode} token={token} exit={() => { navigate('/play'); setToken(''); setError(''); }} /> : <section className="quiz-join"><div><h1>Tham gia Quiz</h1><p>Nhập mã 6 số giáo viên cung cấp.</p></div><form onSubmit={async e => {
       e.preventDefault(); setBusy(true); setError('');
       try {
         const saved = readQuizStorage(`kidit-quiz-player-${code}`);
@@ -70,6 +70,6 @@ export function QuizStudent() {
         if (!writeQuizStorage(`kidit-quiz-player-${code}`, data.token)) setStorageNotice('Trình duyệt không lưu được phiên chơi. Giữ trang này mở để tiếp tục trận đấu.');
         setToken(data.token); navigate(`/play/${code}`);
       } catch (err) { setError(err.message); } finally { setBusy(false); }
-    }}><label>Mã phòng<input required inputMode="numeric" autoComplete="off" pattern="[0-9]{6}" minLength={6} maxLength={6} placeholder="6 chữ số" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} disabled={busy} /></label><label>Tên của bạn<input required autoComplete="nickname" maxLength={40} placeholder="Nhập tên để giáo viên nhận ra bạn" value={name} onChange={e => setName(e.target.value)} disabled={busy} /></label><QuizError>{error}</QuizError><button className="quiz-button" type="submit" disabled={busy}>{busy ? 'Đang vào phòng...' : 'Tham gia trận đấu'}</button></form><p className="quiz-muted">Không cần tài khoản giáo viên. Nếu trùng tên, thêm tên lớp hoặc một số để phân biệt.</p></section>}
+    }}><label>Mã phòng<input required inputMode="numeric" autoComplete="off" pattern="[0-9]{6}" minLength={6} maxLength={6} placeholder="6 chữ số" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} disabled={busy} /></label><label>Tên của bạn<input required autoComplete="nickname" maxLength={40} placeholder="Nhập tên để giáo viên nhận ra bạn" value={name} onChange={e => setName(e.target.value)} disabled={busy} /></label><QuizError>{error}</QuizError><button className="quiz-button" type="submit" disabled={busy}>{busy ? 'Đang vào phòng...' : 'Vào phòng'}</button></form><p className="quiz-muted">Không cần tài khoản giáo viên. Nếu trùng tên, thêm tên lớp hoặc một số để phân biệt.</p></section>}
   </main>;
 }

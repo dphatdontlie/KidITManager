@@ -75,6 +75,46 @@ export function registerPersonalAttendance(app, pool) {
   };
   app.post('/api/classes/:id/personal-attendance', save);
   app.put('/api/classes/:id/personal-attendance/:entryId', save);
+  app.patch('/api/classes/:id/personal-attendance/:entryId/pay', async (req, res, next) => {
+    let connection;
+    try {
+      if (req.user?.role !== 'admin') throw new InputError('Chỉ quản trị viên được sửa tiền công.', 403);
+      const classId = Number(req.params.id);
+      const entryId = Number(req.params.entryId);
+      const { version, amount, reason } = req.body || {};
+      if (![classId, entryId, version].every(value => Number.isSafeInteger(value) && value > 0)) {
+        throw new InputError('Lượt công không hợp lệ. Hãy tải lại bảng.');
+      }
+      if (!validMoney(amount) || typeof reason !== 'string' || !reason.trim() || reason.length > 1000) {
+        throw new InputError('Nhập số tiền nguyên không âm và lý do tối đa 1.000 ký tự.');
+      }
+      connection = await db.getConnection();
+      await connection.beginTransaction();
+      await connection.query('SELECT id FROM classes WHERE id=? FOR UPDATE', [classId]);
+      const [[row]] = await connection.query('SELECT a.*,p.teacher_count,p.ta_count FROM personal_attendance a LEFT JOIN attendance_payroll p ON p.attendance_id=a.id WHERE a.id=? AND a.class_id=? FOR UPDATE', [entryId, classId]);
+      if (!row) throw new InputError('Không tìm thấy lượt công.', 404);
+      if (row.version !== version) throw new InputError('Lượt công đã thay đổi. Hãy tải lại bảng trước khi sửa.', 409);
+      if (row.status === 'cancelled') throw new InputError('Buổi đã hủy không tính tiền công.');
+      const [before] = await applyClassPayRates(connection, [row]);
+      const after = withSessionPay({ ...before, pay_snapshot: null, override_amount: amount });
+      await connection.query('DELETE FROM attendance_pay_details WHERE attendance_id=?', [entryId]);
+      await connection.query('INSERT INTO attendance_pay_details (attendance_id,single_teacher,override_amount,override_reason,snapshot) VALUES (?,?,?,?,?)', [
+        entryId, Number(before.single_teacher), amount, reason.trim(), row.status === 'completed' ? snapshotPay(after) : null,
+      ]);
+      await connection.query('UPDATE personal_attendance SET version=version+1 WHERE id=?', [entryId]);
+      await connection.query('INSERT INTO attendance_actions (attendance_id,actor_account_id,actor_name,action,payload) VALUES (?,?,?,?,?)', [
+        entryId, req.user.id, req.user.name, 'pay_override',
+        JSON.stringify({ before: before.pay_amount, after: after.pay_amount, reason: reason.trim() }),
+      ]);
+      await connection.commit();
+      res.json({ id: entryId, amount: after.pay_amount, version: version + 1 });
+    } catch (error) {
+      if (connection) await connection.rollback();
+      next(error);
+    } finally {
+      connection?.release();
+    }
+  });
   app.delete('/api/classes/:id/personal-attendance/:entryId', async (req, res, next) => {
     let connection;
     try {

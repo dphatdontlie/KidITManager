@@ -44,7 +44,8 @@ export default function Notifications() {
   };
   const subscribed = state?.subscribed && !denied;
   return <div className="notifications-page">
-    <PageHead title="Thông báo" description="Nhắc giờ dạy trên thiết bị của bạn, kể cả khi không mở KidIT." />
+    <PageHead title="Thông báo" />
+    <div className="notification-settings-grid">
     <section className="notification-panel" aria-labelledby="device-notifications">
       <h2 id="device-notifications">Nhận trên thiết bị này</h2>
       {support === 'install' ? <div className="push-help"><p>Trên iPhone hoặc iPad, hãy thêm KidIT vào màn hình chính trước.</p><ol><li>Mở KidIT trong Safari, nhấn Chia sẻ.</li><li>Chọn Thêm vào Màn hình chính.</li><li>Mở icon KidIT vừa thêm, vào Thông báo và nhấn Bật thông báo.</li></ol><p>Cần iOS hoặc iPadOS 16.4 trở lên.</p></div>
@@ -63,12 +64,10 @@ export default function Notifications() {
                   await disablePush(); setState(s => ({ ...s, subscription: null, subscribed: false })); setNotice('Đã tắt thông báo trên thiết bị này.');
                 })}>Tắt trên thiết bị này</Button>}
               </div>}
-              <p className="push-detail">Đăng xuất hoặc hết hạn phiên sẽ ngừng nhắc giờ. Sau khi đăng nhập lại, mở trang này và bật lại cho phiên mới.</p>
-              <p className="push-detail">Thông báo nhắc giờ có thể hiển thị tên lớp, giờ bắt đầu và phòng trên màn hình khóa.</p>
+              <details className="workspace-disclosure"><summary>Cách thông báo hoạt động</summary><p>Đăng xuất hoặc hết hạn phiên sẽ ngừng nhắc giờ. Bật lại sau khi đăng nhập. Tên lớp, giờ và phòng có thể xuất hiện trên màn hình khóa.</p></details>
             </>}
       <Feedback error={error} />
       {error && support === 'supported' && <Button variant="secondary" disabled={busy || loading} onClick={() => setReload(n => n + 1)}>Kiểm tra lại</Button>}
-      <p className="push-feedback" role="status" aria-live="polite">{busy ? 'Đang xử lý...' : notice}</p>
     </section>
     {prefs && <section className="notification-panel" aria-labelledby="teaching-reminders"><h2 id="teaching-reminders">Nhắc trước giờ dạy</h2>
       {prefs.canRemind ? <><p>{prefs.allClasses ? 'Admin nhận nhắc giờ cho tất cả suất học của trung tâm, cùng bản tổng hợp lịch lúc 9:00 mỗi ngày (giờ Việt Nam).' : 'Nhắc các suất được phân công cho bạn theo lịch có hiệu lực của ngày dạy.'} Áp dụng thời gian nhắc cho mọi thiết bị của tài khoản.</p>
@@ -80,5 +79,7 @@ export default function Notifications() {
         <p className="push-detail">Thông báo phụ thuộc kết nối mạng và cài đặt iPhone. Lịch dạy trong KidIT là nơi kiểm tra giờ chính thức.</p>
       </> : <p>Tài khoản này chưa liên kết với giáo viên nên chưa có lịch dạy cá nhân để nhắc. Bạn vẫn có thể bật và gửi thử thông báo.</p>}
     </section>}
+    </div>
+    <p className="push-feedback" role="status" aria-live="polite">{busy ? 'Đang xử lý...' : notice}</p>
   </div>;
 }

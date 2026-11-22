@@ -21,6 +21,31 @@ const rates = { session_amount: 300000, teacher_amount: 200000, ta_amount: 75000
 
 const attendance = patch => ({ teacher_id: 1, date: '2026-10-01', start_time: '15:15', end_time: '17:15', slot: 'Thứ 5 (15:15 - 17:15)', lesson: 'Bài học', role: 'teacher', teacher_count: 1, ta_count: 0, status: 'completed', notes: '', version: 0, ...patch });
 
+test('editing pay from the matrix changes one attendance payment and rejects unauthorized or stale edits', async t => {
+  const { request, login, sqlite } = await serve(t);
+  const admin = await login('admin');
+  const teacher = await login('gv1');
+  const first = await request('/classes/1/personal-attendance', attendance(), admin, 'POST');
+  const second = await request('/classes/1/personal-attendance', attendance({ date: '2026-10-08' }), admin, 'POST');
+  assert.equal(first.status, 200);
+  assert.equal(second.status, 200);
+  const path = `/classes/1/personal-attendance/${first.data.id}/pay`;
+  const edit = { amount: 0, reason: 'Điều chỉnh riêng', version: 1 };
+  assert.equal((await request(path, edit, teacher, 'PATCH')).status, 403);
+  assert.equal((await request(path, { ...edit, reason: ' ' }, admin, 'PATCH')).status, 400);
+  assert.equal((await request(path, edit, admin, 'PATCH')).status, 200);
+  assert.equal((await request(path, { ...edit, amount: 125000 }, admin, 'PATCH')).status, 409);
+  const { data: { entries } } = await request('/payroll?month=2026-10', undefined, admin);
+  const updated = entries.find(row => row.id === first.data.id);
+  assert.equal(updated.pay_amount, 0);
+  assert.equal(updated.pay_basis, 'override');
+  assert.equal(updated.lesson, 'Bài học');
+  assert.equal(updated.status, 'completed');
+  assert.equal(entries.find(row => row.id === second.data.id).pay_amount, 187500);
+  const audit = sqlite.prepare("SELECT payload FROM attendance_actions WHERE action='pay_override'").get();
+  assert.deepEqual(JSON.parse(audit.payload), { before: 187500, after: 0, reason: 'Điều chỉnh riêng' });
+});
+
 test('dated rates affect only their teaching dates, optional rates distinguish blank and zero, and confirmed pay stays frozen', async t => {
   const { request, login } = await serve(t); const admin = await login('admin');
   assert.equal((await request('/payroll/rates/1', { ...rates, no_ta_amount: 187500, solo_teacher_amount: 225000 }, admin)).status, 200);
