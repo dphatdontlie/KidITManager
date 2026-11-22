@@ -1,0 +1,88 @@
+.monthly-schedule {
+  --month-line: var(--line);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--month-line);
+  border-radius: 12px;
+}
+.month-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; padding: 20px 20px 12px; }
+.month-heading-info { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.month-heading h2 { font-size: clamp(29px, 4vw, 40px); line-height: 1.1; letter-spacing: -.04em; }
+.month-heading h2 span { color: var(--muted); font-size: .58em; letter-spacing: 0; font-weight: 500; }
+.month-heading p { margin-top: 5px; color: var(--muted); font-size: 14px; }
+.month-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.month-nav select { padding-inline: 8px; }
+.month-nav .month-arrow { padding: 0; width: 44px; min-width: 44px; justify-content: center; }
+.month-calendar { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.month-calendar thead th { padding: 8px 0; text-align: center; color: var(--muted); font-size: 14px; font-weight: 650; }
+.month-calendar abbr { text-decoration: none; }
+.month-calendar td { vertical-align: top; border-top: 1px solid var(--month-line); min-width: 0; }
+.month-calendar td + td { border-left: 1px solid var(--month-line); }
+.month-calendar .month-outside { background: var(--paper); }
+.month-day {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 134px;
+  padding: 6px 6px 8px;
+  color: var(--ink);
+}
+.month-day:hover { background: var(--paper); }
+.month-day:focus-visible { outline: 2px solid var(--focus); outline-offset: -3px; }
+.month-date-number {
+  display: grid;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  margin: 0 auto 5px;
+  font-size: 19px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.month-outside .month-date-number { margin-top: 6px; color: var(--muted); }
+.month-day[aria-current="date"] .month-date-number { background: var(--accent); color: var(--surface); border-radius: 50%; }
+[data-theme="dark"] .month-day[aria-current="date"] .month-date-number { color: #142e24; }
+.month-events { display: grid; align-content: start; gap: 3px; min-width: 0; width: 100%; }
+.month-event {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  text-align: left;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.month-event span { overflow: hidden; text-overflow: ellipsis; }
+.month-event time { font-size: 11px; font-variant-numeric: tabular-nums; }
+.month-more { color: var(--muted); font-size: 12px; text-align: left; padding-left: 4px; }
+.month-day-lessons { padding: 0 16px; margin: 0; list-style: none; }
+.month-day-lessons li + li { border-top: 1px solid var(--line); }
+.month-day-lessons a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px 10px; padding: 12px 8px; min-height: 56px; }
+.month-day-lessons a:hover { background: var(--soft); }
+.month-day-lessons time { color: var(--accent-text); font-size: 14px; font-weight: 650; }
+.month-day-lessons small { color: var(--muted); grid-column: 2 / -1; grid-row: 2; }
+.month-day-lessons a svg { grid-column: 4; grid-row: 1; }
+.month-day-lessons strong, .month-day-lessons small, .month-day-lessons a span { overflow-wrap: anywhere; }
+
+@media (max-width: 1200px) {
+  .month-event time { display: none; }
+}
+@media (max-width: 660px) {
+  .month-heading { padding: 14px 8px 9px; }
+  .month-nav .button { padding-inline: 6px; }
+  .month-heading-info { width: 100%; }
+  .month-day { padding: 4px 2px 6px; min-height: 110px; }
+  .month-date-number { width: 27px; height: 27px; font-size: 16px; margin-bottom: 4px; }
+  .month-event { font-size: 11px; padding: 2px; }
+  .month-more { padding-left: 2px; }
+  .month-day-lessons a { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .month-day-lessons a span { grid-column: 2; grid-row: 2; font-size: 14px; }
+  .month-day-lessons a small { grid-row: 3; }
+  .month-day-lessons a svg { grid-column: 3; }
+}

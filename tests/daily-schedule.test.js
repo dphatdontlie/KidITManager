@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildScheduleBlocks, buildWeekScheduleBlocks, scheduleBlocksOnDate, shiftScheduleDate } from '../src/redesign/schedule.js';
+import { buildMonthSchedule, buildScheduleBlocks, buildWeekScheduleBlocks, scheduleBlocksOnDate, shiftScheduleDate, shiftScheduleMonth, slotHasPerson } from '../src/redesign/schedule.js';
 
 test('a weekly view resolves each day separately when staffing changes midweek', () => {
   const schedule = 'Thứ 2 (15:15 - 17:15), Thứ 5 (15:15 - 17:15)';
@@ -10,6 +10,32 @@ test('a weekly view resolves each day separately when staffing changes midweek',
   ] };
   const blocks = buildWeekScheduleBlocks([cls], name => name, '2026-10-15');
   assert.deepEqual(blocks.map(row => [row.dayIndex, row.teacher, row.ta]), [[1, 'A, B', ''], [4, 'A', 'B']]);
+});
+
+test('November starts in the Sunday column and monthly filtering respects dated assignments', () => {
+  const schedule = 'Chủ nhật (15:15 - 17:15)';
+  const cls = { id: 1, name: 'KID 2', schedule_history: [
+    { effective_date: '2026-10-01', schedule, teacher: 'Giáo viên A', room: '1' },
+    { effective_date: '2026-11-10', schedule, teacher: 'Giáo viên B', ta: 'Giáo viên A', room: '2' },
+  ] };
+  const days = buildMonthSchedule([cls], name => name, '2026-11', slot => slotHasPerson(slot, 'Giáo viên A'));
+  assert.equal(days.length, 42);
+  assert.equal(days[0].date, '2026-10-26');
+  assert.equal(days[6].date, '2026-11-01');
+  assert.equal(days.at(-1).date, '2026-12-06');
+  assert.deepEqual(days.filter(day => day.blocks.length).map(day => [day.date, day.blocks[0].room, day.blocks[0].ta]), [
+    ['2026-11-01', '1', ''], ['2026-11-08', '1', ''], ['2026-11-15', '2', 'Giáo viên A'],
+    ['2026-11-22', '2', 'Giáo viên A'], ['2026-11-29', '2', 'Giáo viên A'],
+  ]);
+});
+
+test('month navigation and calendars handle year boundaries and leap years', () => {
+  assert.equal(shiftScheduleMonth('2026-12', 1), '2027-01');
+  assert.equal(shiftScheduleMonth('2027-01', -1), '2026-12');
+  assert.equal(shiftScheduleMonth('9999-12', 1), '');
+  assert.equal(shiftScheduleMonth('1000-01', -1), '');
+  assert.equal(shiftScheduleMonth('2026-13', 0), '');
+  assert.equal(buildMonthSchedule([], String, '2028-02').filter(day => day.inMonth).length, 29);
 });
 
 test('daily navigation crosses month, year, and leap-day boundaries without timezone shifts', () => {

@@ -91,3 +91,28 @@ export function buildWeekScheduleBlocks(classes, person, reference) {
   const monday = shiftScheduleDate(reference, -((weekday + 6) % 7));
   return SCHEDULE_DAYS.flatMap((_, index) => buildScheduleBlocks(classes, person, shiftScheduleDate(monday, index)));
 }
+
+export function shiftScheduleMonth(month, months) {
+  const start = `${month}-01`;
+  if (!isCalendarDate(start) || !Number.isInteger(months)) return '';
+  const next = new Date(`${start}T12:00:00Z`);
+  next.setUTCMonth(next.getUTCMonth() + months);
+  if (next.getUTCFullYear() < 1000 || next.getUTCFullYear() > 9999) return '';
+  return next.toISOString().slice(0, 7);
+}
+
+export function buildMonthSchedule(classes, person, month, includes = () => true) {
+  const start = `${month}-01`;
+  if (!isCalendarDate(start)) return [];
+  const first = new Date(`${start}T12:00:00Z`);
+  const leading = (first.getUTCDay() + 6) % 7;
+  first.setUTCMonth(first.getUTCMonth() + 1, 0);
+  const total = Math.ceil((leading + first.getUTCDate()) / 7) * 7;
+  return Array.from({ length: total }, (_, i) => {
+    const date = shiftScheduleDate(start, i - leading);
+    const inMonth = date.slice(0, 7) === month;
+    const blocks = inMonth ? buildScheduleBlocks(classes, person, date).filter(includes)
+      .sort((a, b) => a.timeKey.localeCompare(b.timeKey) || a.className.localeCompare(b.className, 'vi', { numeric: true })) : [];
+    return { date, inMonth, blocks };
+  });
+}
