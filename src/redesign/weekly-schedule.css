@@ -1,0 +1,35 @@
+.schedule-panel-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 20px;
+}
+.schedule-panel-heading h2 { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; letter-spacing: -.04em; }
+.schedule-panel-heading h2 span { color: var(--muted); font-size: .58em; letter-spacing: 0; font-weight: 500; white-space: nowrap; }
+.schedule-panel-heading p { margin-top: 5px; color: var(--muted); font-size: 14px; }
+.weekly-schedule { min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.weekly-navigation { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.weekly-navigation .weekly-next { flex-direction: row-reverse; }
+.weekly-view-bar { padding: 0 20px 14px; border-bottom: 1px solid var(--line); }
+.weekly-view-bar .segmented { display: inline-flex; max-width: 100%; }
+.weekly-view-bar .segmented button { min-height: 44px; }
+.weekly-schedule .compact-week, .weekly-schedule .timetable-scroll { border: 0; border-radius: 0; }
+.weekly-schedule .timetable-scroll:focus-visible { outline-offset: -3px; }
+.weekly-schedule .legacy-timetable th { white-space: nowrap; }
+.weekly-schedule .legacy-timetable tbody th { height: 80px; }
+.weekly-schedule .legacy-timetable thead th span, .weekly-slot-list h3 span { color: var(--muted); font-weight: 400; margin-left: 4px; }
+.weekly-schedule .legacy-timetable th[aria-current="date"] { background: var(--accent-soft); color: var(--accent-text); }
+.weekly-schedule .weekly-slot-list { padding: 14px 20px 20px; gap: 12px; }
+.weekly-schedule .weekly-slot-list h3 { font-size: 16px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.weekly-schedule .weekly-slot-list [aria-current="date"] h3 { color: var(--accent-text); background: var(--accent-soft); }
+.weekly-schedule .weekly-day-classes { padding-inline: 12px; }
+
+@media (max-width: 660px) {
+  .schedule-panel-heading { padding: 14px 12px; }
+  .weekly-navigation { width: 100%; }
+  .weekly-navigation .button { flex: 1 1 auto; padding-inline: 7px; font-size: 14px; justify-content: center; }
+  .weekly-view-bar { padding: 0 12px 12px; }
+  .weekly-schedule .weekly-slot-list { padding: 12px; }
+}

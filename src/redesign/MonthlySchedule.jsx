@@ -59,7 +59,7 @@ export default function MonthlySchedule({ month, onMonthChange, classes, person,
   };
 
   return <section className="monthly-schedule" aria-labelledby="monthly-schedule-title">
-    <div className="month-heading">
+    <div className="schedule-panel-heading month-heading">
       <div className="month-heading-info">
         <div aria-live="polite" aria-atomic="true">
           <h2 id="monthly-schedule-title">{heading} <span>{year}</span></h2>

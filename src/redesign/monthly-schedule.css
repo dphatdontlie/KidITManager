@@ -5,11 +5,8 @@
   border: 1px solid var(--month-line);
   border-radius: 12px;
 }
-.month-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; padding: 20px 20px 12px; }
+.month-heading { padding-bottom: 12px; }
 .month-heading-info { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.month-heading h2 { font-size: clamp(29px, 4vw, 40px); line-height: 1.1; letter-spacing: -.04em; }
-.month-heading h2 span { color: var(--muted); font-size: .58em; letter-spacing: 0; font-weight: 500; }
-.month-heading p { margin-top: 5px; color: var(--muted); font-size: 14px; }
 .month-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 .month-nav select { padding-inline: 8px; }
 .month-nav .month-arrow { padding: 0; width: 44px; min-width: 44px; justify-content: center; }

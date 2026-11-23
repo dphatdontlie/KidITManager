@@ -116,7 +116,6 @@
 .workspace-disclosure :is(.button, p) { margin-block: 4px; }
 .class-information { margin-block-end: 20px; }
 .class-information .class-facts { margin-block: 4px 0; }
-.week-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block-end: 12px; }
 .export-menu > div { max-inline-size: 320px; }
 .export-menu .button { margin-inline-end: 5px; }
 .session-slot-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 12px 20px; border-block: 1px solid var(--line); }
